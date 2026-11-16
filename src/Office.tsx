@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import type { OfficeReport, OfficeResident } from "../server/types.ts";
+import { agentColor } from "./colors.ts";
+import { World } from "./World.tsx";
 
 // Ordre des chambres : le chef, puis l'équipe dans l'ordre de l'enchaînement.
 const ORDER = ["principal", "eclaireur", "documentaliste", "architecte", "developpeur", "testeur", "relecteur"];
@@ -80,7 +82,7 @@ export function OfficeView({ version, onOpenSession }: { version: number; onOpen
       <header className="head office-head">
         <div>
           <h1>Le bureau</h1>
-          <div className="sub">Chaque agent a sa chambre. Il dort quand il n'a rien à faire et file à son ordinateur dès qu'on lui confie une tâche.</div>
+          <div className="sub">Les agents dorment dans le coin repos et filent à leur bureau dès qu'on leur confie une tâche. La pièce s'éclaire quand quelqu'un travaille. Clique sur un agent au travail pour voir sa conversation.</div>
         </div>
         <div className="office-count">
           <span className="oc working">
@@ -92,6 +94,23 @@ export function OfficeView({ version, onOpenSession }: { version: number; onOpen
         </div>
       </header>
 
+      <World
+        actors={residents.map((r) => ({
+          id: r.name,
+          name: displayName(r),
+          color: agentColor(r.name, r.color),
+          working: r.working,
+          tool: r.tasks[0]?.tool,
+          label: r.working ? r.tasks[0]?.label : r.role,
+          visitor: r.kind === "visiteur",
+        }))}
+        onPick={(a) => {
+          const r = residents.find((x) => x.name === a.id);
+          if (r?.tasks[0]) onOpenSession(r.tasks[0].sessionId);
+        }}
+      />
+
+      <h2 className="section-title office-sub">Les chambres</h2>
       <div className="rooms">
         {residents.map((r) => (
           <RoomCard key={r.name} r={r} onOpenSession={onOpenSession} />
@@ -291,5 +310,29 @@ function Critter({
         </>
       )}
     </g>
+  );
+}
+
+/** Le studio en version décorative (écran d'accueil). */
+export function StudioHero({ version }: { version: number }) {
+  const [report, setReport] = useState<OfficeReport | null>(null);
+  useEffect(() => {
+    fetch("/api/office")
+      .then((r) => r.json())
+      .then(setReport)
+      .catch(() => {});
+  }, [version]);
+  if (!report) return <div className="world hero-placeholder" style={{ aspectRatio: "800 / 560" }} />;
+  return (
+    <World
+      actors={report.residents.map((r) => ({
+        id: r.name,
+        name: displayName(r),
+        color: agentColor(r.name, r.color),
+        working: r.working,
+        tool: r.tasks[0]?.tool,
+        label: r.working ? r.tasks[0]?.label : r.role,
+      }))}
+    />
   );
 }

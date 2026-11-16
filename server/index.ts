@@ -14,7 +14,7 @@ import { addProject, listDir, listProjects, removeProject } from "./projects.ts"
 
 const CLAUDE_DIR = path.resolve(process.env.CLAUDE_DIR ?? path.join(os.homedir(), ".claude"));
 const PORT = Number(process.env.PORT ?? 4317);
-const HOST = process.env.HOST ?? "127.0.0.1";
+const HOST = "127.0.0.1"; // toujours local : cette appli peut lancer Claude Code sur ta machine
 const PROD = process.env.NODE_ENV === "production" || process.argv.includes("--prod");
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -227,7 +227,8 @@ async function main() {
   });
 
   server.listen(PORT, HOST, () => {
-    console.log(`\n  Claude Agents Viewer  →  http://${HOST === "0.0.0.0" ? "localhost" : HOST}:${PORT}`);
+    const port = (server.address() as import("node:net").AddressInfo).port;
+    console.log(`\n  Claude Studio  →  http://${HOST}:${port}`);
     console.log(`  Transcripts lus dans  →  ${projectsRoot(CLAUDE_DIR)}\n`);
   });
 }

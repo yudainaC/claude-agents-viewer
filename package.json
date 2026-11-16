@@ -11,7 +11,8 @@
     "start": "tsx server/index.ts --prod",
     "typecheck": "tsc -p .",
     "test": "node scripts/make-fixtures.mjs && CAV_STORE=fixtures/projects.json node --import tsx --test test/*.test.ts",
-    "install-team": "tsx scripts/install-team.ts"
+    "install-team": "tsx scripts/install-team.ts",
+    "app": "vite build && electron ."
   },
   "license": "MIT",
   "dependencies": {
@@ -24,8 +25,10 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
+    "electron": "^38.8.6",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.8"
-  }
+  },
+  "main": "desktop/main.cjs"
 }

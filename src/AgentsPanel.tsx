@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import type { AgentNode, SessionDetail } from "../server/types.ts";
+import { agentColor } from "./colors.ts";
+import { World, type Actor } from "./World.tsx";
 
 const ACTION: Record<string, string> = {
   Read: "lit un fichier",
@@ -42,9 +44,23 @@ export function AgentsPanel({ sessionId, version, running }: { sessionId: string
   if (detail) walk(detail.root);
   const subs = flat.filter((n) => n.depth > 0);
   const active = subs.filter((n) => n.status === "running").length;
+  const mainBusy = running || detail?.root.status === "running";
+  const actors: Actor[] = [
+    { id: "principal", name: "Claude", color: agentColor("principal"), working: !!mainBusy, tool: detail?.root.lastTool, label: "L'agent principal" },
+    ...subs.slice(-8).map((n) => ({
+      id: n.id,
+      name: n.agentType,
+      color: agentColor(n.agentType),
+      working: n.status === "running",
+      tool: n.lastTool,
+      label: n.label,
+      visitor: true,
+    })),
+  ];
 
   return (
     <aside className="agents-panel">
+      <World key={sessionId ?? "new"} actors={actors} height={260} compact />
       <h2>Agents</h2>
       {!detail ? (
         <p className="muted small">Les agents de la conversation apparaîtront ici dès que Claude commencera à travailler.</p>

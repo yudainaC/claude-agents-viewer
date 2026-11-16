@@ -2,7 +2,7 @@
 
 Une interface graphique locale pour **travailler avec Claude Code sans terminal** : tu choisis un projet, tu discutes avec Claude, tu le vois lire et modifier tes fichiers, et tu suis ses sous-agents en direct.
 
-![Discussion](docs/capture.png)
+![Le studio animé](docs/studio.gif)
 
 ## Ce que ça fait
 
@@ -11,12 +11,12 @@ Une interface graphique locale pour **travailler avec Claude Code sans terminal*
 - **Permissions** : quand Claude veut modifier un fichier ou lancer une commande, il te demande avec des boutons *Autoriser*, *Toujours autoriser* ou *Refuser*. Trois modes au choix : *Demander avant d'agir*, *Modifs automatiques*, *Plan seulement*.
 - **Conversations** : retrouve et reprends tes conversations passées, y compris celles commencées dans le terminal.
 - **Agents en direct** : à droite, Claude et ses sous-agents, avec ce que chacun est en train de faire.
-- **Bureau** : chaque agent a sa petite chambre. Il dort dans son lit quand il n'a rien à faire et s'installe à son ordinateur dès qu'il travaille.
+- **Le studio animé** : les agents sont de petits personnages qui vivent dans une pièce. Ils dorment dans le coin repos (avec des « Zzz »), marchent jusqu'à un bureau quand on leur confie une tâche, tapent sur leur clavier pendant que du code s'envole de l'écran, et les sous-agents entrent et sortent par la porte. La pièce passe de la nuit au jour dès que quelqu'un travaille. Il est visible en grand dans l'onglet Bureau, en petit à côté de la discussion, et sur l'écran d'accueil.
 - **Équipe** : six sous-agents prêts à l'emploi pour dépenser moins (voir plus bas).
 
 Tout reste sur ta machine : le serveur n'écoute que sur `127.0.0.1` et refuse les requêtes venues d'autres sites.
 
-![Bureau](docs/bureau.png)
+![Discussion](docs/capture.png)
 
 ## Démarrage
 
@@ -26,12 +26,25 @@ Il faut **Node.js 20+** et **Claude Code déjà connecté** (si la commande `cla
 git clone https://github.com/yudainaC/claude-agents-viewer
 cd claude-agents-viewer
 npm install
+```
+
+### En appli de bureau (conseillé)
+
+```bash
+npm run app
+```
+
+Claude Studio s'ouvre dans sa propre fenêtre, comme une vraie application, sans passer par le navigateur.
+
+### Dans le navigateur
+
+```bash
 npm run dev
 ```
 
-Ouvre http://127.0.0.1:4317, clique sur **Ouvrir un projet**, choisis ton dossier, et écris ta première demande.
+Puis ouvre http://127.0.0.1:4317. Pour une version compilée : `npm run build` puis `npm start`.
 
-Pour une version compilée : `npm run build` puis `npm start`.
+Ensuite, clique sur **Ouvrir un projet**, choisis ton dossier, et écris ta première demande.
 
 | Variable     | Par défaut   | Rôle                                    |
 |--------------|--------------|-----------------------------------------|
@@ -71,7 +84,9 @@ npm run demo      # données factices pour le bureau et l'équipe
 ```
 server/   index.ts (API), chat.ts (Claude Agent SDK), projects.ts, parser.ts (transcripts),
           office.ts (bureau), team.ts (équipe), types.ts
-src/      App.tsx, Chat.tsx, AgentsPanel.tsx, Office.tsx, Team.tsx, FolderPicker.tsx, styles.css
+src/      App.tsx, Chat.tsx, World.tsx (studio animé, canvas), AgentsPanel.tsx, Office.tsx, Team.tsx,
+          FolderPicker.tsx, styles.css
+desktop/  main.cjs (fenêtre Electron)
 .claude/agents/  l'équipe de sous-agents
 team/     orchestration.md (guide à coller dans CLAUDE.md)
 ```

@@ -3,7 +3,7 @@ import type { ConversationInfo, ProjectInfo } from "../server/types.ts";
 import { AgentsPanel } from "./AgentsPanel.tsx";
 import { Chat } from "./Chat.tsx";
 import { FolderPicker } from "./FolderPicker.tsx";
-import { OfficeView } from "./Office.tsx";
+import { OfficeView, StudioHero } from "./Office.tsx";
 import { TeamView } from "./Team.tsx";
 
 type View = "chat" | "office" | "team";
@@ -222,7 +222,9 @@ export function App() {
           </div>
         ) : (
           <div className="welcome">
-            <Logo size={56} />
+            <div className="hero">
+              <StudioHero version={version} />
+            </div>
             <h1>Travaille avec Claude Code, sans terminal</h1>
             <p>Choisis le dossier d'un projet : tu pourras discuter avec Claude, le voir lire et modifier tes fichiers, et suivre ses sous-agents en direct.</p>
             <button className="btn primary big" onClick={() => setPicker(true)}>
