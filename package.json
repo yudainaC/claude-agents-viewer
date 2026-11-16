@@ -13,6 +13,7 @@
     "test": "node scripts/make-fixtures.mjs && CAV_STORE=fixtures/projects.json node --import tsx --test test/*.test.ts",
     "install-team": "tsx scripts/install-team.ts",
     "app": "vite build && tauri dev",
+    "fenetre": "vite build && node scripts/window.mjs",
     "app:build": "vite build && tauri build",
     "tauri": "tauri"
   },

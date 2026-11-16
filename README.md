@@ -28,7 +28,15 @@ cd claude-agents-viewer
 npm install
 ```
 
-### En appli de bureau (conseillé)
+### Dans une fenêtre à part, le plus fluide (conseillé sous Linux)
+
+```bash
+npm run fenetre
+```
+
+Ouvre Claude Studio dans sa propre fenêtre (sans onglets ni barre d'adresse) avec le moteur de Chrome, Chromium, Brave ou Edge, celui que tu as. C'est aussi fluide que dans le navigateur, puisque la carte graphique est utilisée. Ferme la fenêtre pour tout arrêter. Rien d'autre à installer.
+
+### En appli de bureau Tauri
 
 L'appli de bureau est faite avec [Tauri](https://tauri.app) : une fenêtre native légère, sans navigateur. Il faut **Rust** une seule fois ([rustup.rs](https://rustup.rs)) et, selon ton système :
 
