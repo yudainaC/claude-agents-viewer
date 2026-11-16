@@ -94,7 +94,7 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 
 /** Plafond de pixels du canvas (≈ 1600×1000) et cadence de l'animation. */
 const MAX_PIXELS = 1_600_000;
-const FRAME_MS = 1000 / 30;
+const FRAME_MS = 1000 / 60;
 
 export function World({
   actors,
@@ -888,7 +888,7 @@ export function World({
       blit(vig);
     };
 
-    // boucle à ~30 images/s, en pause quand le studio n'est pas visible
+    // boucle à 60 images/s maximum (même sur un écran 144 Hz), en pause quand le studio n'est pas visible
     let visible = true;
     let lastDraw = 0;
     const loop = (now: number) => {

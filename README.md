@@ -42,6 +42,8 @@ npm run app
 
 La première fois, la compilation prend quelques minutes, ensuite c'est rapide. Claude Studio s'ouvre dans sa propre fenêtre et arrête son serveur local quand tu la fermes.
 
+Sous Linux, l'appli demande la carte graphique à WebKitGTK, et contourne automatiquement le souci connu des pilotes NVIDIA (`WEBKIT_DISABLE_DMABUF_RENDERER`). Si l'affichage est blanc ou saccadé, essaie `CAV_GPU=0 npm run app` ou `WEBKIT_DISABLE_COMPOSITING_MODE=1 npm run app`.
+
 Pour fabriquer une application installable (`.dmg`, `.msi`, `.deb`…) : `npm run app:build`. Elle se retrouve dans `src-tauri/target/release/bundle/` et utilise le dossier cloné, garde-le en place.
 
 ### Dans le navigateur

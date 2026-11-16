@@ -76,7 +76,23 @@ fn error_page(msg: &str) -> String {
     )
 }
 
+/// Sous Linux, WebKitGTK dessine parfois sans la carte graphique. Avec les pilotes
+/// NVIDIA, son nouveau moteur d'affichage (DMA-BUF) marche mal : on revient à
+/// l'ancien, qui reste accéléré par la carte. CAV_GPU=0 pour tout désactiver.
+#[cfg(target_os = "linux")]
+fn tune_linux_gpu() {
+    if std::env::var("CAV_GPU").as_deref() == Ok("0") {
+        return;
+    }
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() && std::path::Path::new("/proc/driver/nvidia").exists() {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+}
+
 fn main() {
+    #[cfg(target_os = "linux")]
+    tune_linux_gpu();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(Server(Mutex::new(None)))
@@ -99,6 +115,18 @@ fn main() {
                     local
                 })
                 .build()?;
+
+            // demande explicitement la carte graphique pour dessiner la page
+            #[cfg(target_os = "linux")]
+            if std::env::var("CAV_GPU").as_deref() != Ok("0") {
+                win.with_webview(|wv| {
+                    use webkit2gtk::{HardwareAccelerationPolicy, SettingsExt, WebViewExt};
+                    if let Some(s) = WebViewExt::settings(&wv.inner()) {
+                        s.set_hardware_acceleration_policy(HardwareAccelerationPolicy::Always);
+                        s.set_enable_webgl(true);
+                    }
+                })?;
+            }
 
             std::thread::spawn(move || match start_server() {
                 Ok((child, url)) => {
