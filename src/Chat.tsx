@@ -107,6 +107,13 @@ export function Chat({
       return "default";
     }
   });
+  const [team, setTeam] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("cav-team") !== "0";
+    } catch {
+      return true;
+    }
+  });
   const [runId, setRunId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +129,13 @@ export function Chat({
       /* ignore */
     }
   }, [mode]);
+  useEffect(() => {
+    try {
+      localStorage.setItem("cav-team", team ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [team]);
 
   const attach = useCallback(
     (id: string, replace: boolean) => {
@@ -210,7 +224,7 @@ export function Chat({
       const r = await fetch("/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ cwd, prompt, sessionId: currentSession.current, mode }),
+        body: JSON.stringify({ cwd, prompt, sessionId: currentSession.current, mode, team }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "Erreur");
@@ -307,7 +321,18 @@ export function Chat({
               </option>
             ))}
           </select>
-          <span className="muted small mode-hint">{MODES.find((m) => m.id === mode)?.hint}</span>
+          <label
+            className={`team-toggle ${team ? "on" : ""}`}
+            title={
+              team
+                ? "Mode équipe : Claude dirige ses sous-agents spécialisés. Il ne code pas lui-même : le développeur modifie, le testeur lance les commandes, les Haiku ne font que lire et chercher."
+                : "Claude travaille seul, avec tous ses outils."
+            }
+          >
+            <input type="checkbox" checked={team} onChange={(e) => setTeam(e.target.checked)} disabled={!!runId} />
+            Mode équipe
+          </label>
+          <span className="muted small mode-hint">{team ? "Claude dirige l'équipe, chacun sa spécialité" : MODES.find((m) => m.id === mode)?.hint}</span>
           {runId ? (
             <button type="button" className="btn danger" onClick={stop}>
               ■ Arrêter

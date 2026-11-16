@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { installTeam, parseAgentFile, teamReport } from "../server/team.ts";
+import { CHEF_DISALLOWED, chefGuard, teamAgents, teamRules } from "../server/chat.ts";
 
 const ROOT = path.resolve(".");
 const FIXTURES = path.resolve("fixtures");
@@ -29,6 +30,29 @@ test("les agents de lecture ne peuvent pas modifier de fichiers", () => {
     const d = parseAgentFile(fs.readFileSync(path.join(dir, `${name}.md`), "utf8"))!;
     for (const t of ["Edit", "Write", "Bash"]) assert.ok(!d.tools.includes(t), `${name} ne doit pas avoir ${t}`);
   }
+});
+
+test("spécialisation stricte : Haiku lit seulement, un seul codeur, un seul testeur", () => {
+  const dir = path.join(ROOT, ".claude", "agents");
+  const defs = fs.readdirSync(dir).filter((f) => f.endsWith(".md")).map((f) => parseAgentFile(fs.readFileSync(path.join(dir, f), "utf8"))!);
+  const readOnly = new Set(["Read", "Grep", "Glob", "WebSearch", "WebFetch"]);
+  for (const d of defs.filter((d) => d.model === "haiku")) {
+    for (const t of d.tools) assert.ok(readOnly.has(t), `${d.name} (Haiku) ne doit pas avoir ${t}`);
+  }
+  assert.deepEqual(defs.filter((d) => d.tools.some((t) => ["Edit", "Write", "MultiEdit"].includes(t))).map((d) => d.name), ["developpeur"]);
+  assert.deepEqual(defs.filter((d) => d.tools.includes("Bash")).map((d) => d.name), ["testeur"]);
+});
+
+test("mode équipe : le chef ne code pas et connaît son équipe", () => {
+  for (const t of ["Edit", "Write", "Bash"]) assert.ok(CHEF_DISALLOWED.includes(t));
+  assert.equal((chefGuard({ tool_name: "Edit" }) as any).hookSpecificOutput.permissionDecision, "deny");
+  assert.deepEqual(chefGuard({ tool_name: "Edit", agent_id: "a1" }), {}, "le développeur garde Edit");
+  assert.deepEqual(chefGuard({ tool_name: "Read" }), {});
+  const agents = teamAgents(ROOT);
+  assert.equal(Object.keys(agents).length, 6);
+  assert.deepEqual(agents.eclaireur.tools, ["Read", "Grep", "Glob"]);
+  assert.equal(agents.eclaireur.model, "haiku");
+  assert.ok(teamRules(ROOT).includes("chef de projet"));
 });
 
 test("installe sans écraser, puis écrase sur demande", () => {

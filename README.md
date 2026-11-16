@@ -55,18 +55,26 @@ Ensuite, clique sur **Ouvrir un projet**, choisis ton dossier, et écris ta prem
 
 ![Onglet Équipe](docs/equipe.png)
 
-Six sous-agents Claude Code (dans `.claude/agents/`), chacun sur le modèle le moins cher qui suffit, pour que l'agent principal garde un contexte léger :
+Six sous-agents Claude Code (dans `.claude/agents/`), chacun **limité à sa spécialité par ses outils** : un agent ne peut pas faire le travail d'un autre, même s'il le voulait.
 
-| Sous-agent       | Modèle | Rôle |
-|------------------|--------|------|
-| `eclaireur`      | Haiku  | Trouve où est le code et rend un rapport court |
-| `documentaliste` | Haiku  | Cherche dans la doc et sur le web, avec les sources |
-| `architecte`     | Opus   | Conçoit le plan d'une modification non triviale |
-| `developpeur`    | Sonnet | Réalise une étape précise du plan et la vérifie |
-| `testeur`        | Haiku  | Lance les tests et ne rend que les échecs |
-| `relecteur`      | Sonnet | Relit le diff et signale les vrais bugs |
+| Sous-agent       | Modèle | Outils | Ce qu'il fait (et seulement ça) |
+|------------------|--------|--------|------|
+| `eclaireur`      | Haiku  | Read, Grep, Glob | Trouve où est le code, rend un rapport court. Lecture seule. |
+| `documentaliste` | Haiku  | WebSearch, WebFetch, Read, Grep, Glob | Cherche dans la doc et sur le web, avec les sources. Lecture seule. |
+| `architecte`     | Opus   | Read, Grep, Glob | Conçoit le plan d'une modification. Ne code pas. |
+| `developpeur`    | Sonnet | Read, Edit, Write, Grep, Glob | **Le seul qui modifie le code.** Pas de commandes. |
+| `testeur`        | Sonnet | Bash, Read, Grep, Glob | **Le seul qui lance des commandes** (tests, build). Ne modifie rien. |
+| `relecteur`      | Sonnet | Read, Grep, Glob | Relit les changements et signale les vrais bugs. |
 
-Installe-les depuis l'onglet **Équipe** (bouton « Installer l'équipe ») ou avec `npm run install-team`. Ils vont dans `~/.claude/agents` et servent dans tous tes projets, que tu passes par l'appli ou par le terminal. Colle ensuite le guide (bouton « Copier le guide ») dans `~/.claude/CLAUDE.md` pour que Claude sache à qui déléguer.
+Les Haiku ne touchent jamais au code : ils lisent et cherchent, c'est tout.
+
+### Mode équipe
+
+Dans Claude Code, un sous-agent ne peut pas appeler un autre sous-agent. C'est donc le Claude principal qui fait passer le travail : avec l'interrupteur **Mode équipe** (activé par défaut, sous la zone de message), il devient **chef de projet**. Il n'a plus le droit de modifier des fichiers ni de lancer des commandes (bloqué par un hook, pas seulement par une consigne) et enchaîne l'équipe selon les règles de [`team/orchestration.md`](team/orchestration.md) :
+
+éclaireur → architecte → développeur → testeur → relecteur, avec jusqu'à 3 allers-retours de correction entre testeur/relecteur et développeur.
+
+En mode équipe, les sous-agents sont fournis directement par l'appli : rien à installer. Pour t'en servir aussi dans le terminal, installe-les depuis l'onglet **Équipe** (« Installer l'équipe ») ou avec `npm run install-team` : ils vont dans `~/.claude/agents`.
 
 ## Comment ça marche
 

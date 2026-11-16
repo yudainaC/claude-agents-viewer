@@ -12,7 +12,60 @@ import type http from "node:http";
 import path from "node:path";
 import { getSessionMessages, listSessions as sdkListSessions, query } from "@anthropic-ai/claude-agent-sdk";
 import type { PermissionMode, PermissionResult, Query, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { AgentDefinition as SdkAgentDefinition } from "@anthropic-ai/claude-agent-sdk";
+import { fileURLToPath } from "node:url";
+import { parseAgentFile, teamDir } from "./team.ts";
 import type { ChatEvent, ConversationInfo } from "./types.ts";
+
+const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+/**
+ * Outils interdits à l'agent principal en mode équipe : il dirige, il ne code pas.
+ * (Pas via `disallowedTools`, qui s'appliquerait aussi aux sous-agents : on bloque
+ * avec un hook PreToolUse seulement quand l'appel vient du fil principal.)
+ */
+export const CHEF_DISALLOWED = ["Edit", "Write", "MultiEdit", "NotebookEdit", "Bash"];
+
+/** Définitions de l'équipe, lues dans .claude/agents de l'appli (pas besoin de les installer). */
+export function teamAgents(appRoot = APP_ROOT): Record<string, SdkAgentDefinition> {
+  const out: Record<string, SdkAgentDefinition> = {};
+  let files: string[] = [];
+  try {
+    files = fs.readdirSync(teamDir(appRoot)).filter((f) => f.endsWith(".md"));
+  } catch {
+    return out;
+  }
+  for (const f of files) {
+    const d = parseAgentFile(fs.readFileSync(path.join(teamDir(appRoot), f), "utf8"));
+    if (!d) continue;
+    out[d.name] = {
+      description: d.description,
+      prompt: d.prompt,
+      tools: d.tools.length ? d.tools : undefined,
+      model: d.model === "inherit" ? undefined : (d.model as any),
+    };
+  }
+  return out;
+}
+
+export function chefGuard(input: { tool_name?: string; agent_id?: string }) {
+  if (input.agent_id || !input.tool_name || !CHEF_DISALLOWED.includes(input.tool_name)) return {};
+  return {
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse" as const,
+      permissionDecision: "deny" as const,
+      permissionDecisionReason: `Mode équipe : tu es le chef de projet, tu n'utilises pas ${input.tool_name}. Confie ce travail au sous-agent spécialisé (developpeur pour modifier, testeur pour lancer des commandes).`,
+    },
+  };
+}
+
+export function teamRules(appRoot = APP_ROOT): string {
+  try {
+    return fs.readFileSync(path.join(appRoot, "team", "orchestration.md"), "utf8");
+  } catch {
+    return "";
+  }
+}
 
 export type ChatMode = "default" | "acceptEdits" | "plan";
 
@@ -158,7 +211,7 @@ function translate(run: Run, m: SDKMessage) {
 
 // --------------------------------------------------------------- API
 
-export function startRun(opts: { cwd: string; prompt: string; sessionId?: string; mode: ChatMode; model?: string }): Run {
+export function startRun(opts: { cwd: string; prompt: string; sessionId?: string; mode: ChatMode; model?: string; team?: boolean }): Run {
   if (!fs.existsSync(opts.cwd) || !fs.statSync(opts.cwd).isDirectory()) throw new Error("Dossier introuvable");
   const run: Run = {
     id: randomUUID(),
@@ -175,6 +228,13 @@ export function startRun(opts: { cwd: string; prompt: string; sessionId?: string
   emit(run, { kind: "user", text: opts.prompt });
 
   const mode: PermissionMode = opts.mode;
+  const team = opts.team
+    ? {
+        agents: teamAgents(),
+        hooks: { PreToolUse: [{ hooks: [async (input: any) => chefGuard(input)] }] },
+        systemPrompt: { type: "preset" as const, preset: "claude_code" as const, append: teamRules() },
+      }
+    : {};
   const q = query({
     prompt: opts.prompt,
     options: {
@@ -185,6 +245,7 @@ export function startRun(opts: { cwd: string; prompt: string; sessionId?: string
       includePartialMessages: true,
       // mêmes réglages que dans le terminal : CLAUDE.md, agents, permissions…
       settingSources: ["user", "project", "local"],
+      ...team,
       canUseTool: async (toolName, input, { signal, suggestions }) => {
         const id = randomUUID();
         emit(run, {

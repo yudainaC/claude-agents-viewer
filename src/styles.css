@@ -400,3 +400,23 @@ code { font-family: var(--mono); font-size: 12.5px; }
 .welcome p, .welcome .btn, .recent { animation: rise .8s .2s ease-out both; }
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
 .hero-placeholder { background: linear-gradient(110deg, var(--surface-2), var(--surface), var(--surface-2)); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+
+.team-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #3333);
+  cursor: pointer;
+  user-select: none;
+}
+.team-toggle.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.team-toggle input {
+  accent-color: var(--accent);
+  margin: 0;
+}
