@@ -226,6 +226,12 @@ async function main() {
     else serveStatic(res, url.pathname);
   });
 
+  // Lancé par l'appli de bureau : on s'arrête dès qu'elle se ferme (même si elle plante).
+  if (process.env.CAV_EXIT_WITH_PARENT) {
+    process.stdin.on("end", () => process.exit(0));
+    process.stdin.on("close", () => process.exit(0));
+    process.stdin.resume();
+  }
   server.listen(PORT, HOST, () => {
     const port = (server.address() as import("node:net").AddressInfo).port;
     console.log(`\n  Claude Studio  →  http://${HOST}:${port}`);

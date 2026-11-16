@@ -391,9 +391,6 @@ code { font-family: var(--mono); font-size: 12.5px; }
 .page .world { max-width: 1100px; max-height: 72vh; margin: 0 auto; }
 
 /* ---------- appli de bureau */
-.desktop .topbar { -webkit-app-region: drag; }
-.desktop .topbar button, .desktop .topbar select { -webkit-app-region: no-drag; }
-.desktop.mac .brand { padding-top: 38px; -webkit-app-region: drag; }
 .welcome { justify-content: flex-start; overflow: auto; }
 .hero { width: min(760px, 100%); margin-bottom: 8px; animation: rise .8s ease-out both; }
 .welcome h1 { animation: rise .8s .1s ease-out both; }

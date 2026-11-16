@@ -30,11 +30,19 @@ npm install
 
 ### En appli de bureau (conseillé)
 
+L'appli de bureau est faite avec [Tauri](https://tauri.app) : une fenêtre native légère, sans navigateur. Il faut **Rust** une seule fois ([rustup.rs](https://rustup.rs)) et, selon ton système :
+
+- **macOS** : `xcode-select --install`
+- **Windows** : les « Microsoft C++ Build Tools » (WebView2 est déjà installé sur Windows 10/11)
+- **Linux** : `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev` (voir les [prérequis Tauri](https://tauri.app/start/prerequisites/))
+
 ```bash
 npm run app
 ```
 
-Claude Studio s'ouvre dans sa propre fenêtre, comme une vraie application, sans passer par le navigateur.
+La première fois, la compilation prend quelques minutes, ensuite c'est rapide. Claude Studio s'ouvre dans sa propre fenêtre et arrête son serveur local quand tu la fermes.
+
+Pour fabriquer une application installable (`.dmg`, `.msi`, `.deb`…) : `npm run app:build`. Elle se retrouve dans `src-tauri/target/release/bundle/` et utilise le dossier cloné, garde-le en place.
 
 ### Dans le navigateur
 
@@ -94,7 +102,8 @@ server/   index.ts (API), chat.ts (Claude Agent SDK), projects.ts, parser.ts (tr
           office.ts (bureau), team.ts (équipe), types.ts
 src/      App.tsx, Chat.tsx, World.tsx (studio animé, canvas), AgentsPanel.tsx, Office.tsx, Team.tsx,
           FolderPicker.tsx, styles.css
-desktop/  main.cjs (fenêtre Electron)
+src-tauri/ appli de bureau Tauri (lance le serveur, ouvre la fenêtre)
+desktop/  icône et page de démarrage de l'appli
 .claude/agents/  l'équipe de sous-agents
 team/     orchestration.md (guide à coller dans CLAUDE.md)
 ```

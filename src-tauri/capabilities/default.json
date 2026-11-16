@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Aucune commande native exposée à la page : l'interface parle seulement au serveur local.",
+  "windows": ["main"],
+  "permissions": []
+}
