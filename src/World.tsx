@@ -94,6 +94,8 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 
 /** Plafond de pixels du canvas (≈ 1600×1000) et cadence de l'animation. */
 const MAX_PIXELS = 1_600_000;
+/** Durée minimale passée au bureau, même pour une tâche éclair. */
+const LINGER_MS = 6000;
 /** En aperçu, on coupe le haut du mur (vide) pour agrandir la pièce. */
 const PREVIEW_TOP = 70;
 const FRAME_MS = 1000 / 60;
@@ -131,6 +133,7 @@ export function World({
     let vigKey = "";
     let transform: [number, number, number, number, number, number] = [1, 0, 0, 1, 0, 0];
     const sprites = new Map<string, Sprite>();
+    const lingerUntil = new Map<string, number>();
     const particles: Particle[] = [];
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     let first = true;
@@ -211,7 +214,14 @@ export function World({
         used.add(i);
         return i;
       };
-      for (const a of list) {
+      const now = performance.now();
+      for (const raw of list) {
+        // un agent très rapide (quelques secondes) resterait invisible : on le
+        // laisse au moins LINGER_MS à son bureau pour qu'on le voie travailler
+        if (raw.working) lingerUntil.set(raw.id, now + LINGER_MS);
+        const lingering = !raw.working && (lingerUntil.get(raw.id) ?? 0) > now;
+        const prev = sprites.get(raw.id)?.actor;
+        const a: Actor = lingering ? { ...raw, working: true, tool: raw.tool ?? prev?.tool } : raw;
         let s = sprites.get(a.id);
         if (!s) {
           const bed = free(usedBeds);
@@ -787,7 +797,7 @@ export function World({
         const dy = s.ty - s.y;
         const dist = Math.hypot(dx, dy);
         if (dist > 2) {
-          const sp = Math.min(dist, 110 * dt);
+          const sp = Math.min(dist, 170 * dt);
           s.x += (dx / dist) * sp;
           s.y += (dy / dist) * sp;
           s.pose = "walk";

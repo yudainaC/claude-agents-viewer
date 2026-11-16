@@ -41,3 +41,40 @@ test("une session sans sous-agent n'a que l'agent principal", () => {
   assert.equal(s.counts.total, 1);
   assert.equal(s.root.status, "done");
 });
+
+test("un sous-agent lancé en arrière-plan reste « au travail » tant qu'il n'a pas fini", async () => {
+  const fs = await import("node:fs");
+  const os = await import("node:os");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cav-async-"));
+  const sid = "aaaaaaaa-0000-4000-8000-000000000001";
+  const now = new Date().toISOString();
+  const lines = [
+    { type: "user", timestamp: now, message: { role: "user", content: "fais-le" } },
+    { type: "assistant", timestamp: now, message: { id: "m1", role: "assistant", model: "claude-sonnet-5-5", stop_reason: "tool_use", content: [{ type: "tool_use", id: "tu1", name: "Agent", input: { subagent_type: "developpeur", description: "Créer conv.js", prompt: "…" } }] } },
+    { type: "user", timestamp: now, message: { role: "user", content: [{ type: "tool_result", tool_use_id: "tu1", content: [{ type: "text", text: "Async agent launched successfully.\nagentId: a1" }] }] } },
+    { type: "assistant", timestamp: now, message: { id: "m2", role: "assistant", model: "claude-sonnet-5-5", stop_reason: "end_turn", content: [{ type: "text", text: "J'attends le développeur." }] } },
+  ];
+  fs.writeFileSync(path.join(dir, `${sid}.jsonl`), lines.map((l) => JSON.stringify(l)).join("\n"));
+  const sub = path.join(dir, sid, "subagents");
+  fs.mkdirSync(sub, { recursive: true });
+  const subLines = [
+    { type: "user", timestamp: now, agentId: "a1", message: { role: "user", content: "Créer conv.js" } },
+    { type: "assistant", timestamp: now, agentId: "a1", message: { id: "s1", role: "assistant", model: "claude-sonnet-5-5", stop_reason: "tool_use", content: [{ type: "tool_use", id: "w1", name: "Write", input: {} }] } },
+  ];
+  fs.writeFileSync(path.join(sub, "agent-a1.jsonl"), subLines.map((l) => JSON.stringify(l)).join("\n"));
+  const meta = { agentType: "developpeur", description: "Créer conv.js", toolUseId: "tu1", requestShape: "background" };
+  fs.writeFileSync(path.join(sub, "agent-a1.meta.json"), JSON.stringify(meta));
+
+  let s = buildSession(dir, sid)!;
+  assert.equal(s.root.children[0].agentType, "developpeur");
+  assert.equal(s.root.children[0].status, "running", "le résultat immédiat ne veut pas dire fini");
+  assert.equal(s.root.status, "running", "le chef attend son sous-agent");
+
+  fs.writeFileSync(path.join(sub, "agent-a1.meta.json"), JSON.stringify({ ...meta, finished: true }));
+  const later = new Date(Date.now() + 1000);
+  fs.utimesSync(path.join(sub, "agent-a1.meta.json"), later, later);
+  fs.utimesSync(path.join(sub, "agent-a1.jsonl"), later, later);
+  s = buildSession(dir, sid)!;
+  assert.equal(s.root.children[0].status, "done");
+  fs.rmSync(dir, { recursive: true });
+});

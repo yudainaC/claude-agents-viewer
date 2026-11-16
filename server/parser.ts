@@ -25,6 +25,8 @@ interface SpawnCall {
   prompt?: string;
   model?: string;
   resultSeen: boolean;
+  /** Lancé en arrière-plan : le résultat immédiat ne signifie pas qu'il a fini */
+  async?: boolean;
   isError: boolean;
   /** agentId renvoyé dans toolUseResult (permet de relier sans meta.json) */
   agentId?: string;
@@ -80,6 +82,7 @@ interface Meta {
   spawnDepth?: number;
   model?: string;
   finished?: boolean;
+  requestShape?: string;
 }
 
 // ---------------------------------------------------------------- cache
@@ -190,6 +193,15 @@ export function parseTranscript(file: string, mtimeMs = 0): Transcript {
           if (b?.type !== "tool_result") continue;
           const sp = t.spawns.get(b.tool_use_id);
           if (!sp) continue;
+          // un sous-agent lancé en arrière-plan renvoie tout de suite « Async agent
+          // launched » : ce n'est pas sa fin, il continue de travailler
+          const r0 = d.toolUseResult;
+          const asyncLaunch = /async agent launched/i.test(textOf(b.content) ?? "") || (r0 && typeof r0 === "object" && (r0.status === "async_launched" || r0.isAsync === true));
+          if (asyncLaunch) {
+            sp.async = true;
+            if (r0 && typeof r0 === "object" && r0.agentId) sp.agentId = r0.agentId;
+            continue;
+          }
           sp.resultSeen = true;
           sp.isError = !!b.is_error;
           const r = d.toolUseResult;
