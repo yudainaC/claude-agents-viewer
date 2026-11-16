@@ -17,6 +17,11 @@ const ACTION: Record<string, string> = {
   TodoWrite: "organise ses tâches",
 };
 
+function modelName(id: string) {
+  const m = /(opus|sonnet|haiku|fable)/i.exec(id);
+  return m ? m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() : id;
+}
+
 const TEAM = ["eclaireur", "documentaliste", "architecte", "developpeur", "testeur", "relecteur"];
 
 const STATUS: Record<AgentNode["status"], string> = {
@@ -66,6 +71,19 @@ export function AgentsPanel({ sessionId, version, running, onOpenOffice }: { ses
   ];
 
 
+  // qui a consommé quoi dans cette conversation (part estimée du quota)
+  const byWho = new Map<string, { weight: number; model?: string; runs: number }>();
+  for (const n of flat) {
+    const key = n.depth === 0 ? "Claude (chef)" : n.agentType;
+    const e = byWho.get(key) ?? { weight: 0, model: n.model, runs: 0 };
+    e.weight += n.weight ?? 0;
+    e.runs += n.depth === 0 ? 0 : 1;
+    e.model ??= n.model;
+    byWho.set(key, e);
+  }
+  const totalWeight = [...byWho.values()].reduce((a, e) => a + e.weight, 0);
+  const shares = [...byWho.entries()].filter(([, e]) => e.weight > 0).sort((a, b) => b[1].weight - a[1].weight);
+
   return (
     <aside className="agents-panel">
       <div className="preview-wrap">
@@ -100,6 +118,30 @@ export function AgentsPanel({ sessionId, version, running, onOpenOffice }: { ses
               </li>
             ))}
           </ul>
+          {totalWeight > 0 && (
+            <div className="conso">
+              <h2>Consommation de la conversation</h2>
+              <p className="muted small">Part estimée du quota utilisé ici, par agent.</p>
+              {shares.map(([who, e]) => {
+                const pct = Math.round((e.weight / totalWeight) * 100);
+                return (
+                  <div key={who} className="conso-row">
+                    <div className="conso-label">
+                      <span>
+                        {who}
+                        {e.runs > 1 && <span className="muted"> ×{e.runs}</span>}
+                        {e.model && <span className="conso-model">{modelName(e.model)}</span>}
+                      </span>
+                      <span>{pct} %</span>
+                    </div>
+                    <div className="usage-bar">
+                      <div className="usage-fill" style={{ width: `${pct}%`, background: agentColor(who.startsWith("Claude") ? "principal" : who) }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </>
       )}
     </aside>

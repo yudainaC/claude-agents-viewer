@@ -16,6 +16,8 @@ export interface AgentNode {
   lastActivityAt?: string;
   durationMs?: number;
   totalTokens?: number;
+  /** Poids relatif dans le quota (voir usageWeight) */
+  weight?: number;
   /** Dernier outil appelé (ce qu'il fait en ce moment s'il est actif) */
   lastTool?: string;
   /** Nombre d'appels par outil, ex. { Bash: 3, Read: 5 } */

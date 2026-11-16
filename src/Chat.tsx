@@ -361,7 +361,7 @@ export function Chat({
           >
             {(usage?.models.length ? usage.models : FALLBACK_MODELS).map((m) => (
               <option key={m.value} value={m.value}>
-                {m.label}
+                {m.value === "" && team ? "Par défaut (Sonnet en équipe)" : m.label}
               </option>
             ))}
             {model && !(usage?.models.length ? usage.models : FALLBACK_MODELS).some((m) => m.value === model) && <option value={model}>{model}</option>}

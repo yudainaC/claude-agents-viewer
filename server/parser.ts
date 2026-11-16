@@ -52,6 +52,25 @@ interface Transcript {
   lastTool?: string;
   /** Tokens consommés d'après les champs usage des réponses (dédoublonnés par message) */
   tokens: number;
+  /** Poids relatif dans le quota (tokens pondérés par type et par modèle) */
+  weight: number;
+}
+
+/** Prix relatif d'un modèle (Haiku = 1). Sert à estimer la part de quota de chaque agent. */
+export function modelWeight(model?: string): number {
+  const m = (model ?? "").toLowerCase();
+  if (m.includes("haiku")) return 1;
+  if (m.includes("sonnet")) return 3;
+  return 5; // opus, fable et inconnus : on compte large
+}
+
+/**
+ * Poids d'une réponse : une lecture en cache coûte ~10 fois moins qu'une entrée
+ * normale, une écriture en cache ~1,25 fois plus, et une sortie ~5 fois plus.
+ */
+export function usageWeight(u: any, model?: string): number {
+  const units = (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) * 1.25 + (u.cache_read_input_tokens ?? 0) * 0.1 + (u.output_tokens ?? 0) * 5;
+  return units * modelWeight(model);
 }
 
 interface Meta {
@@ -98,6 +117,7 @@ export function parseTranscript(file: string, mtimeMs = 0): Transcript {
     messages: 0,
     spawns: new Map(),
     tokens: 0,
+    weight: 0,
     ended: false,
   };
   const seenMsg = new Set<string>();
@@ -137,6 +157,7 @@ export function parseTranscript(file: string, mtimeMs = 0): Transcript {
           (u.output_tokens ?? 0) +
           (u.cache_creation_input_tokens ?? 0) +
           (u.cache_read_input_tokens ?? 0);
+        t.weight += usageWeight(u, msg.model);
       }
       if (Array.isArray(msg.content)) {
         for (const b of msg.content) {
@@ -206,6 +227,7 @@ function baseNode(t: Transcript, id: string, depth: number): AgentNode {
     lastActivityAt: t.lastTs,
     durationMs: start && end ? end - start : undefined,
     totalTokens: t.tokens || undefined,
+    weight: t.weight || undefined,
     lastTool: t.lastTool,
     tools: t.tools,
     toolCalls: t.toolCalls,
