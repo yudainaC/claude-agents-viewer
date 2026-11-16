@@ -221,7 +221,7 @@ export function App() {
         ) : project ? (
           <div className="chat-layout">
             <Chat cwd={project} projectName={projectName} sessionId={sessionId} onSession={onSession} onRunning={onRunning} />
-            <AgentsPanel sessionId={sessionId} version={version} running={running} />
+            <AgentsPanel sessionId={sessionId} version={version} running={running} onOpenOffice={() => setView("office")} />
           </div>
         ) : (
           <div className="welcome">

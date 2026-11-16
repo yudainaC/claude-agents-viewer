@@ -94,6 +94,8 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 
 /** Plafond de pixels du canvas (≈ 1600×1000) et cadence de l'animation. */
 const MAX_PIXELS = 1_600_000;
+/** En aperçu, on coupe le haut du mur (vide) pour agrandir la pièce. */
+const PREVIEW_TOP = 70;
 const FRAME_MS = 1000 / 60;
 
 export function World({
@@ -153,10 +155,17 @@ export function World({
       bg.height = vig.height = cv.height;
       bgKey = vigKey = "";
       // on remplit la largeur, et on cadre sur le sol si la hauteur manque
-      scale = Math.max(r.width / W, r.height / H);
-      // en petit format on zoome sur le sol (lits et bureaux), centré sur la pièce
-      offX = compact ? r.width / 2 - 448 * scale : (r.width - W * scale) / 2;
-      offY = Math.min(0, r.height - H * scale);
+      // (en aperçu, la pièce entière est visible : même ratio que la scène)
+      if (compact) {
+        // aperçu : toute la pièce, sans le haut du mur qui est vide
+        scale = Math.min(r.width / W, r.height / (H - PREVIEW_TOP));
+        offX = (r.width - W * scale) / 2;
+        offY = (r.height - (H - PREVIEW_TOP) * scale) / 2 - PREVIEW_TOP * scale;
+      } else {
+        scale = Math.max(r.width / W, r.height / H);
+        offX = (r.width - W * scale) / 2;
+        offY = Math.min(0, r.height - H * scale);
+      }
       transform = [dpr * scale, 0, 0, dpr * scale, dpr * offX, dpr * offY];
       main.setTransform(...transform);
     };
@@ -710,9 +719,17 @@ export function World({
       const a = s.actor;
       const sleeping = s.pose === "sleep";
       const working = s.pose === "work";
+      // en aperçu, la scène est réduite : on garde les textes lisibles (taille
+      // fixe à l'écran) et on ne montre que les bulles d'outil
+      const k = compact ? Math.max(1, 8.5 / (10.5 * scale)) : 1;
+      // (les noms sont dans la liste sous l'aperçu : ici seulement au survol)
       if (!compact || hoverRef.current === a.id) {
         ctx.save();
         ctx.globalAlpha = s.alpha * (sleeping ? 0.75 : 1);
+        const ly0 = sleeping ? s.y + 26 : s.y + 16;
+        ctx.translate(s.x, ly0);
+        ctx.scale(k, k);
+        ctx.translate(-s.x, -ly0);
         ctx.font = "600 10.5px ui-monospace, Menlo, monospace";
         ctx.textAlign = "center";
         const label = a.name;
@@ -731,6 +748,9 @@ export function World({
         ctx.save();
         ctx.globalAlpha = s.alpha;
         const by = s.y - 78 + Math.sin(t * 2 + s.phase) * 2;
+        ctx.translate(s.x, by + 11);
+        ctx.scale(k, k);
+        ctx.translate(-s.x, -(by + 11));
         ctx.font = "600 10px ui-monospace, Menlo, monospace";
         const text = a.tool + "…";
         const bw = ctx.measureText(text).width + 16;
@@ -953,7 +973,7 @@ export function World({
   }, [compact]);
 
   return (
-    <div className="world" ref={wrap} style={height ? { height } : { aspectRatio: `${W} / ${H}` }}>
+    <div className="world" ref={wrap} style={height ? { height } : { aspectRatio: `${W} / ${compact ? H - PREVIEW_TOP : H}` }}>
       <canvas ref={canvas} className="world-canvas" aria-label="Le studio : les agents dorment ou travaillent à leur bureau" role="img" />
       {tip && (
         <div className="world-tip" style={{ left: Math.min(tip.x + 14, (wrap.current?.clientWidth ?? 300) - 220), top: Math.max(4, tip.y - 10) }}>

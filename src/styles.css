@@ -387,7 +387,7 @@ code { font-family: var(--mono); font-size: 12.5px; }
 .world-tip em { color: #cfc8bd; font-style: normal; }
 .office-sub { margin-top: 26px; }
 .agents-panel .world { margin-bottom: 14px; border-radius: 12px; }
-.chat-layout { grid-template-columns: minmax(0, 1fr) 340px; }
+.chat-layout { grid-template-columns: minmax(0, 1fr) 400px; }
 .page .world { max-width: 1100px; max-height: 72vh; margin: 0 auto; }
 
 /* ---------- appli de bureau */
@@ -431,3 +431,7 @@ code { font-family: var(--mono); font-size: 12.5px; }
 .usage-fill.hot { background: #d9534f; }
 .usage-reset { font-size: 11px; color: var(--muted, #888); margin-top: 3px; }
 .model-select { max-width: 190px; }
+
+.preview-wrap { position: relative; }
+.preview-open { position: absolute; top: 8px; right: 8px; font-size: 11.5px; font-weight: 600; padding: 4px 9px; border-radius: 99px; background: rgb(20 18 16 / .55); color: #fff; opacity: 0; transition: opacity .2s; backdrop-filter: blur(4px); }
+.preview-wrap:hover .preview-open, .preview-open:focus-visible { opacity: 1; }
