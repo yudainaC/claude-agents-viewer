@@ -245,7 +245,9 @@ export function startRun(opts: { cwd: string; prompt: string; sessionId?: string
       cwd: opts.cwd,
       resume: opts.sessionId,
       permissionMode: mode,
-      model: opts.model || undefined,
+      // en mode équipe, le chef ne fait que distribuer le travail : Sonnet suffit
+      // et consomme bien moins de quota qu'Opus (sauf choix explicite)
+      model: opts.model || (opts.team ? "sonnet" : undefined),
       includePartialMessages: true,
       // mêmes réglages que dans le terminal : CLAUDE.md, agents, permissions…
       settingSources: ["user", "project", "local"],

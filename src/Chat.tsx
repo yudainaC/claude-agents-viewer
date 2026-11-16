@@ -377,7 +377,7 @@ export function Chat({
             <input type="checkbox" checked={team} onChange={(e) => setTeam(e.target.checked)} disabled={!!runId} />
             Mode équipe
           </label>
-          <span className="muted small mode-hint">{team ? "Claude dirige l'équipe, chacun sa spécialité" : MODES.find((m) => m.id === mode)?.hint}</span>
+          <span className="muted small mode-hint">{team ? `Claude dirige l'équipe${model ? "" : " (chef sur Sonnet)"}, chacun sa spécialité` : MODES.find((m) => m.id === mode)?.hint}</span>
           {runId ? (
             <button type="button" className="btn danger" onClick={stop}>
               ■ Arrêter
