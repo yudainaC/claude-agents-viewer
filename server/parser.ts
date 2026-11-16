@@ -46,6 +46,10 @@ interface Transcript {
   toolCalls: number;
   messages: number;
   spawns: Map<string, SpawnCall>;
+  /** Le dernier message est une réponse finale de l'agent (tour terminé) */
+  ended: boolean;
+  /** Dernier outil appelé */
+  lastTool?: string;
   /** Tokens consommés d'après les champs usage des réponses (dédoublonnés par message) */
   tokens: number;
 }
@@ -94,6 +98,7 @@ export function parseTranscript(file: string, mtimeMs = 0): Transcript {
     messages: 0,
     spawns: new Map(),
     tokens: 0,
+    ended: false,
   };
   const seenMsg = new Set<string>();
   let raw = "";
@@ -120,6 +125,7 @@ export function parseTranscript(file: string, mtimeMs = 0): Transcript {
     const msg = d.message;
     if (!msg || (d.type !== "user" && d.type !== "assistant")) continue;
     t.messages++;
+    t.ended = d.type === "assistant" && ["end_turn", "stop_sequence", "max_tokens", "refusal"].includes(msg.stop_reason);
 
     if (d.type === "assistant") {
       if (msg.model && msg.model !== "<synthetic>") t.model = msg.model;
@@ -137,6 +143,7 @@ export function parseTranscript(file: string, mtimeMs = 0): Transcript {
           if (b?.type !== "tool_use") continue;
           t.toolCalls++;
           t.tools[b.name] = (t.tools[b.name] ?? 0) + 1;
+          t.lastTool = b.name;
           if (SPAWN_TOOLS.has(b.name)) {
             const inp = b.input ?? {};
             t.spawns.set(b.id, {
@@ -199,6 +206,7 @@ function baseNode(t: Transcript, id: string, depth: number): AgentNode {
     lastActivityAt: t.lastTs,
     durationMs: start && end ? end - start : undefined,
     totalTokens: t.tokens || undefined,
+    lastTool: t.lastTool,
     tools: t.tools,
     toolCalls: t.toolCalls,
     messages: t.messages,
@@ -222,7 +230,7 @@ export function buildSession(projectDir: string, sessionId: string): SessionDeta
 
   const root = baseNode(main, "main", 0);
   root.label = "Agent principal";
-  root.status = isRecent(main.lastTs, now) ? "running" : "done";
+  root.status = isRecent(main.lastTs, now) && !main.ended ? "running" : "done";
 
   // Tous les transcripts de la session, indexés par id d'agent
   const transcripts = new Map<string, { t: Transcript; node: AgentNode }>();
@@ -319,7 +327,7 @@ export function buildSession(projectDir: string, sessionId: string): SessionDeta
 
 function subStatus(meta: Meta, call: SpawnCall | undefined, t: Transcript, now: number): AgentStatus {
   if (call?.isError) return "error";
-  if (meta.finished === true) return "done";
+  if (meta.finished === true || t.ended) return "done";
   if (meta.finished === false) return isRecent(t.lastTs, now) ? "running" : "interrupted";
   if (call?.resultSeen) return "done";
   return isRecent(t.lastTs, now) ? "running" : "interrupted";

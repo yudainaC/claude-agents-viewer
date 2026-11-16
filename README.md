@@ -1,104 +1,79 @@
-# Claude Agents Viewer
+# Claude Studio
 
-Une interface graphique locale pour **voir et compter les agents et sous-agents de Claude Code**, en temps réel.
+Une interface graphique locale pour **travailler avec Claude Code sans terminal** : tu choisis un projet, tu discutes avec Claude, tu le vois lire et modifier tes fichiers, et tu suis ses sous-agents en direct.
 
-![Capture](docs/capture.png)
+![Discussion](docs/capture.png)
 
-- **Arbre des agents** : l'agent principal, ses sous-agents, et les sous-agents de ces sous-agents, sur autant de niveaux que nécessaire.
-- **Compteurs** : agents au total, sous-agents, actifs, terminés, en erreur ou interrompus, profondeur maximale, appels d'outils, répartition par type (`Explore`, `general-purpose`, vos agents perso…).
-- **Détail d'un agent** : statut, modèle, durée, tokens, messages, outils utilisés (avec un graphique), consigne reçue.
-- **Temps réel** : l'interface se met à jour dès qu'un agent écrit dans son transcript.
-- **100 % local** : le serveur n'écoute que sur `127.0.0.1` et lit simplement les fichiers de `~/.claude`. Rien n'est envoyé ailleurs.
+## Ce que ça fait
+
+- **Projets** : ouvre n'importe quel dossier de ta machine. Les projets où tu as déjà utilisé Claude Code apparaissent tout seuls.
+- **Discussion** : écris à Claude comme dans le terminal. Sa réponse s'affiche au fur et à mesure, chaque action est résumée en clair (« Lit src/App.tsx », « Lance les tests »…), et tu peux déplier pour voir la commande exacte et le résultat.
+- **Permissions** : quand Claude veut modifier un fichier ou lancer une commande, il te demande avec des boutons *Autoriser*, *Toujours autoriser* ou *Refuser*. Trois modes au choix : *Demander avant d'agir*, *Modifs automatiques*, *Plan seulement*.
+- **Conversations** : retrouve et reprends tes conversations passées, y compris celles commencées dans le terminal.
+- **Agents en direct** : à droite, Claude et ses sous-agents, avec ce que chacun est en train de faire.
+- **Bureau** : chaque agent a sa petite chambre. Il dort dans son lit quand il n'a rien à faire et s'installe à son ordinateur dès qu'il travaille.
+- **Équipe** : six sous-agents prêts à l'emploi pour dépenser moins (voir plus bas).
+
+Tout reste sur ta machine : le serveur n'écoute que sur `127.0.0.1` et refuse les requêtes venues d'autres sites.
+
+![Bureau](docs/bureau.png)
+
+## Démarrage
+
+Il faut **Node.js 20+** et **Claude Code déjà connecté** (si la commande `claude` marche dans ton terminal, c'est bon : l'appli utilise la même connexion).
+
+```bash
+git clone https://github.com/yudainaC/claude-agents-viewer
+cd claude-agents-viewer
+npm install
+npm run dev
+```
+
+Ouvre http://127.0.0.1:4317, clique sur **Ouvrir un projet**, choisis ton dossier, et écris ta première demande.
+
+Pour une version compilée : `npm run build` puis `npm start`.
+
+| Variable     | Par défaut   | Rôle                                    |
+|--------------|--------------|-----------------------------------------|
+| `CLAUDE_DIR` | `~/.claude`  | Dossier de configuration de Claude Code |
+| `PORT`       | `4317`       | Port du serveur                         |
 
 ## L'équipe de sous-agents
 
 ![Onglet Équipe](docs/equipe.png)
 
-L'appli fournit une équipe de six sous-agents Claude Code (dans `.claude/agents/`), pensée pour **dépenser moins** : l'agent principal, le plus cher, garde un contexte léger et délègue chaque tâche au modèle le moins cher qui suffit.
+Six sous-agents Claude Code (dans `.claude/agents/`), chacun sur le modèle le moins cher qui suffit, pour que l'agent principal garde un contexte léger :
 
-| Sous-agent       | Modèle | Outils                         | Rôle |
-|------------------|--------|--------------------------------|------|
-| `eclaireur`      | Haiku  | Read, Grep, Glob               | Trouve où est le code et rend un rapport court (`fichier:ligne`) |
-| `documentaliste` | Haiku  | WebSearch, WebFetch, lecture   | Cherche dans la doc et sur le web, avec les sources |
-| `architecte`     | Opus   | Read, Grep, Glob               | Conçoit le plan d'une modification non triviale, une seule fois |
-| `developpeur`    | Sonnet | Read, Edit, Write, Bash…       | Réalise une étape précise du plan et la vérifie |
-| `testeur`        | Haiku  | Bash, lecture                  | Lance les tests et ne rend que les échecs, sans les longs journaux |
-| `relecteur`      | Sonnet | lecture, git diff              | Relit le diff et signale les vrais bugs |
+| Sous-agent       | Modèle | Rôle |
+|------------------|--------|------|
+| `eclaireur`      | Haiku  | Trouve où est le code et rend un rapport court |
+| `documentaliste` | Haiku  | Cherche dans la doc et sur le web, avec les sources |
+| `architecte`     | Opus   | Conçoit le plan d'une modification non triviale |
+| `developpeur`    | Sonnet | Réalise une étape précise du plan et la vérifie |
+| `testeur`        | Haiku  | Lance les tests et ne rend que les échecs |
+| `relecteur`      | Sonnet | Relit le diff et signale les vrais bugs |
 
-Enchaînement type : **eclaireur → architecte → developpeur(s) → testeur → relecteur**. Les agents de lecture n'ont pas le droit de modifier de fichiers.
-
-**Installer l'équipe** (dans `~/.claude/agents`, pour tous tes projets) :
-
-- depuis l'onglet **Équipe** de l'interface, bouton « Installer l'équipe » ;
-- ou en ligne de commande : `npm run install-team` (ajoute `-- --force` pour écraser une version que tu as modifiée).
-
-Ensuite, colle le guide `team/orchestration.md` dans ton `~/.claude/CLAUDE.md` : il dit à Claude quand déléguer à qui. L'onglet Équipe a un bouton pour le copier.
-
-L'onglet Équipe montre aussi l'usage réel de chaque type de sous-agent (lancements, modèles, tokens, erreurs) et des **conseils d'optimisation** tirés de tes sessions, par exemple :
-
-- un agent qui ne fait que lire mais tourne sur Opus ou Sonnet ;
-- l'agent principal qui fait 25 lectures ou plus sans rien déléguer ;
-- une majorité de sous-agents `general-purpose` au lieu d'agents spécialisés ;
-- un type de sous-agent qui échoue souvent.
-
-## Démarrage
-
-Il faut Node.js 20 ou plus récent.
-
-```bash
-npm install
-
-# Essayer avec des sessions factices qui bougent toutes seules
-npm run demo
-
-# Utiliser vos vraies sessions Claude Code (~/.claude/projects)
-npm run dev
-```
-
-Puis ouvrez http://127.0.0.1:4317 et lancez Claude Code dans un autre terminal.
-
-Pour une version compilée : `npm run build` puis `npm start`.
-
-### Options
-
-| Variable     | Par défaut   | Rôle                                      |
-|--------------|--------------|-------------------------------------------|
-| `CLAUDE_DIR` | `~/.claude`  | Dossier de configuration de Claude Code   |
-| `PORT`       | `4317`       | Port du serveur                           |
-| `HOST`       | `127.0.0.1`  | Adresse d'écoute (gardez-la locale)        |
+Installe-les depuis l'onglet **Équipe** (bouton « Installer l'équipe ») ou avec `npm run install-team`. Ils vont dans `~/.claude/agents` et servent dans tous tes projets, que tu passes par l'appli ou par le terminal. Colle ensuite le guide (bouton « Copier le guide ») dans `~/.claude/CLAUDE.md` pour que Claude sache à qui déléguer.
 
 ## Comment ça marche
 
-Claude Code écrit chaque session dans `~/.claude/projects/<projet>/<session>.jsonl`.
-Chaque sous-agent a son propre transcript :
-
-```
-<session>/subagents/agent-<id>.jsonl
-<session>/subagents/agent-<id>.meta.json   { agentType, description, toolUseId, finished, … }
-```
-
-Le serveur (`server/parser.ts`) relie chaque sous-agent à son parent en cherchant l'appel d'outil `Agent` (ou `Task`, ancien nom) dont l'identifiant vaut `toolUseId`. C'est ce qui permet de reconstruire l'arbre sur plusieurs niveaux.
-
-Un agent est **actif** s'il n'est pas marqué terminé et a écrit dans les 2 dernières minutes, ou s'il attend un sous-agent actif. Un agent non terminé et silencieux depuis plus longtemps est **interrompu**.
+- La discussion passe par le [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk), c'est-à-dire Claude Code lui-même : mêmes outils, mêmes réglages (`CLAUDE.md`, sous-agents, permissions) que dans le terminal.
+- Les agents en direct et le bureau lisent les transcripts que Claude Code écrit dans `~/.claude/projects` (un fichier par session, et un par sous-agent dans `<session>/subagents/`).
 
 ## Développement
 
 ```bash
-npm test          # tests du parseur et de l'équipe sur les sessions de démo
+npm test          # tests (parseur, équipe, discussion)
 npm run typecheck
+npm run demo      # données factices pour le bureau et l'équipe
 ```
 
-Structure :
-
 ```
-server/   index.ts (API + flux SSE), parser.ts (lecture des transcripts), types.ts
-src/      App.tsx (interface React), styles.css
-server/   team.ts (équipe : définitions, installation, usage, conseils)
-src/      Team.tsx (onglet Équipe)
+server/   index.ts (API), chat.ts (Claude Agent SDK), projects.ts, parser.ts (transcripts),
+          office.ts (bureau), team.ts (équipe), types.ts
+src/      App.tsx, Chat.tsx, AgentsPanel.tsx, Office.tsx, Team.tsx, FolderPicker.tsx, styles.css
 .claude/agents/  l'équipe de sous-agents
 team/     orchestration.md (guide à coller dans CLAUDE.md)
-scripts/  make-fixtures.mjs (sessions factices), demo.mjs (démo en direct), install-team.ts
-test/     tests du parseur et de l'équipe
 ```
 
 ## Licence

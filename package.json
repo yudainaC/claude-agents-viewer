@@ -2,7 +2,7 @@
   "name": "claude-agents-viewer",
   "version": "0.1.0",
   "private": true,
-  "description": "Interface graphique locale pour suivre les agents et sous-agents de Claude Code",
+  "description": "Interface graphique locale pour Claude Code : choisir un projet, discuter avec Claude, suivre ses sous-agents",
   "type": "module",
   "scripts": {
     "dev": "tsx watch --ignore src server/index.ts",
@@ -10,11 +10,12 @@
     "build": "tsc -p . && vite build",
     "start": "tsx server/index.ts --prod",
     "typecheck": "tsc -p .",
-    "test": "node scripts/make-fixtures.mjs && node --import tsx --test test/*.test.ts",
+    "test": "node scripts/make-fixtures.mjs && CAV_STORE=fixtures/projects.json node --import tsx --test test/*.test.ts",
     "install-team": "tsx scripts/install-team.ts"
   },
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.325",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

@@ -8,6 +8,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildSession, findSessionDir, listSessions, projectsRoot } from "./parser.ts";
 import { installTeam, teamReport } from "./team.ts";
+import { officeReport } from "./office.ts";
+import { activeRuns, answerPermission, conversations, history, startRun, stopRun, streamRun } from "./chat.ts";
+import { addProject, listDir, listProjects, removeProject } from "./projects.ts";
 
 const CLAUDE_DIR = path.resolve(process.env.CLAUDE_DIR ?? path.join(os.homedir(), ".claude"));
 const PORT = Number(process.env.PORT ?? 4317);
@@ -24,7 +27,7 @@ async function readBody(req: http.IncomingMessage): Promise<any> {
   let data = "";
   for await (const chunk of req) {
     data += chunk;
-    if (data.length > 10_000) break;
+    if (data.length > 200_000) break;
   }
   try {
     return JSON.parse(data || "{}");
@@ -86,7 +89,68 @@ setInterval(() => {
   }
 }, 1500);
 
+/**
+ * Cette appli peut lancer Claude Code sur ta machine : on n'accepte que les
+ * requêtes venues de sa propre page (pas d'un autre site ouvert dans le navigateur).
+ */
+function allowed(req: http.IncomingMessage): boolean {
+  const host = req.headers.host ?? "";
+  if (!/^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(host)) return false; // anti DNS rebinding
+  if (req.method === "GET") return true;
+  const origin = req.headers.origin;
+  if (origin && origin !== `http://${host}`) return false;
+  return String(req.headers["content-type"] ?? "").startsWith("application/json");
+}
+
 async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL) {
+  if (!allowed(req)) return json(res, 403, { error: "requête refusée" });
+  const post = req.method === "POST";
+
+  // ---- projets
+  if (url.pathname === "/api/projects" && !post) return json(res, 200, listProjects(CLAUDE_DIR));
+  if (url.pathname === "/api/projects" && post) {
+    const body = await readBody(req);
+    try {
+      return json(res, 200, body.remove ? (removeProject(String(body.path)), { ok: true }) : addProject(String(body.path ?? "")));
+    } catch (e: any) {
+      return json(res, 400, { error: e.message });
+    }
+  }
+  if (url.pathname === "/api/fs") return json(res, 200, listDir(url.searchParams.get("path") ?? undefined));
+
+  // ---- discussion avec Claude Code
+  if (url.pathname === "/api/conversations") {
+    return json(res, 200, await conversations(String(url.searchParams.get("cwd") ?? "")));
+  }
+  if (url.pathname === "/api/history") {
+    try {
+      return json(res, 200, await history(String(url.searchParams.get("sessionId")), String(url.searchParams.get("cwd") ?? "")));
+    } catch (e: any) {
+      return json(res, 500, { error: e.message });
+    }
+  }
+  if (url.pathname === "/api/chat/active") return json(res, 200, activeRuns());
+  if (url.pathname === "/api/chat" && post) {
+    const b = await readBody(req);
+    if (!b.prompt || !b.cwd) return json(res, 400, { error: "message ou dossier manquant" });
+    try {
+      const run = startRun({ cwd: String(b.cwd), prompt: String(b.prompt), sessionId: b.sessionId || undefined, mode: ["default", "acceptEdits", "plan"].includes(b.mode) ? b.mode : "default", model: b.model });
+      return json(res, 200, { runId: run.id });
+    } catch (e: any) {
+      return json(res, 400, { error: e.message });
+    }
+  }
+  const cm = /^\/api\/chat\/([0-9a-f-]+)\/(stream|permission|stop)$/.exec(url.pathname);
+  if (cm) {
+    const [, runId, action] = cm;
+    if (action === "stream") return streamRun(runId, req, res) || json(res, 404, { error: "discussion introuvable" });
+    if (action === "permission" && post) {
+      const b = await readBody(req);
+      return json(res, answerPermission(runId, String(b.id), !!b.allow, !!b.always) ? 200 : 404, {});
+    }
+    if (action === "stop" && post) return json(res, (await stopRun(runId)) ? 200 : 404, {});
+  }
+
   if (url.pathname === "/api/info") {
     return json(res, 200, { claudeDir: CLAUDE_DIR, exists: fs.existsSync(projectsRoot(CLAUDE_DIR)) });
   }
@@ -99,16 +163,13 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     const s = dir && buildSession(dir, m[1]);
     return s ? json(res, 200, s) : json(res, 404, { error: "session introuvable" });
   }
+  if (url.pathname === "/api/office") {
+    return json(res, 200, officeReport(ROOT, CLAUDE_DIR));
+  }
   if (url.pathname === "/api/team" && req.method === "GET") {
     return json(res, 200, teamReport(ROOT, CLAUDE_DIR));
   }
-  if (url.pathname === "/api/team/install" && req.method === "POST") {
-    // Écrit dans ~/.claude/agents : on refuse tout appel venu d'une autre page web.
-    const origin = req.headers.origin;
-    const host = req.headers.host;
-    if ((origin && origin !== `http://${host}`) || !String(req.headers["content-type"]).startsWith("application/json")) {
-      return json(res, 403, { error: "requête refusée" });
-    }
+  if (url.pathname === "/api/team/install" && post) {
     const body = await readBody(req);
     return json(res, 200, installTeam(ROOT, CLAUDE_DIR, !!body.overwrite));
   }

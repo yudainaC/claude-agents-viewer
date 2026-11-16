@@ -16,6 +16,8 @@ export interface AgentNode {
   lastActivityAt?: string;
   durationMs?: number;
   totalTokens?: number;
+  /** Dernier outil appelé (ce qu'il fait en ce moment s'il est actif) */
+  lastTool?: string;
   /** Nombre d'appels par outil, ex. { Bash: 3, Read: 5 } */
   tools: Record<string, number>;
   toolCalls: number;
@@ -120,3 +122,74 @@ export interface InstallResult {
   updated: string[];
   skipped: string[];
 }
+
+// ------------------------------------------------------------ bureau
+
+export interface OfficeTask {
+  label: string;
+  sessionId: string;
+  sessionTitle?: string;
+  project: string;
+  tool?: string;
+  lastActivityAt?: string;
+}
+
+export interface OfficeResident {
+  /** "principal" pour l'agent principal, sinon le type de sous-agent */
+  name: string;
+  model: string;
+  color?: string;
+  /** Rôle en une phrase */
+  role: string;
+  /** Membre de l'équipe, ou simple visiteur (Explore, general-purpose, agent perso…) */
+  kind: "principal" | "equipe" | "visiteur";
+  working: boolean;
+  tasks: OfficeTask[];
+  lastSeenAt?: string;
+}
+
+export interface OfficeReport {
+  residents: OfficeResident[];
+  working: number;
+  sleeping: number;
+}
+
+// ------------------------------------------------------------ projets & discussion
+
+export interface ProjectInfo {
+  path: string;
+  name: string;
+  /** Ajouté à la main depuis l'interface */
+  pinned: boolean;
+  lastActivityAt?: string;
+  running?: number;
+}
+
+export interface DirListing {
+  path: string;
+  parent?: string;
+  home: string;
+  isRepo: boolean;
+  dirs: { name: string; path: string; isRepo: boolean }[];
+}
+
+export interface ConversationInfo {
+  sessionId: string;
+  title: string;
+  lastModified: number;
+}
+
+/** Événements simplifiés envoyés à l'interface pendant une discussion. */
+export type ChatEvent =
+  | { kind: "user"; text: string }
+  | { kind: "session"; sessionId: string; model: string; cwd: string }
+  | { kind: "text-delta"; text: string }
+  | { kind: "text"; text: string }
+  | { kind: "tool"; id: string; name: string; summary: string; detail?: string }
+  | { kind: "tool-result"; id: string; isError: boolean; preview: string }
+  | { kind: "subagent-step"; parentToolUseId: string; summary: string; tool: string }
+  | { kind: "permission"; id: string; tool: string; summary: string; detail?: string }
+  | { kind: "permission-answer"; id: string; allow: boolean }
+  | { kind: "result"; ok: boolean; costUsd?: number; durationMs?: number; message?: string }
+  | { kind: "error"; message: string }
+  | { kind: "end"; sessionId?: string };
