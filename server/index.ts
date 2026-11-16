@@ -135,7 +135,7 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     const b = await readBody(req);
     if (!b.prompt || !b.cwd) return json(res, 400, { error: "message ou dossier manquant" });
     try {
-      const run = startRun({ cwd: String(b.cwd), prompt: String(b.prompt), sessionId: b.sessionId || undefined, mode: ["default", "acceptEdits", "plan"].includes(b.mode) ? b.mode : "default", model: typeof b.model === "string" && /^[a-z0-9.\-\[\]]{1,60}$/i.test(b.model) ? b.model : undefined, team: b.team !== false });
+      const run = startRun({ cwd: String(b.cwd), prompt: String(b.prompt), sessionId: b.sessionId || undefined, mode: ["default", "acceptEdits", "plan", "auto"].includes(b.mode) ? b.mode : "default", model: typeof b.model === "string" && /^[a-z0-9.\-\[\]]{1,60}$/i.test(b.model) ? b.model : undefined, team: b.team !== false });
       return json(res, 200, { runId: run.id });
     } catch (e: any) {
       return json(res, 400, { error: e.message });

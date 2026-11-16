@@ -3,9 +3,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatEvent } from "../server/types.ts";
 import { Markdown } from "./markdown.tsx";
 
-type Mode = "default" | "acceptEdits" | "plan";
+type Mode = "auto" | "default" | "acceptEdits" | "plan";
 
 const MODES: { id: Mode; label: string; hint: string }[] = [
+  { id: "auto", label: "Automatique", hint: "Claude agit seul pour ce qui est sans risque, et te demande seulement quand une action est douteuse." },
   { id: "default", label: "Demander avant d'agir", hint: "Claude te demande la permission avant de modifier un fichier ou de lancer une commande." },
   { id: "acceptEdits", label: "Modifs automatiques", hint: "Claude modifie les fichiers sans demander, mais demande toujours avant les commandes." },
   { id: "plan", label: "Plan seulement", hint: "Claude explore et propose un plan, sans rien modifier." },
@@ -110,9 +111,15 @@ export function Chat({
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<Mode>(() => {
     try {
-      return (localStorage.getItem("cav-mode") as Mode) || "default";
+      // « auto » par défaut ; l'ancien défaut « demander tout » est migré une fois
+      const saved = localStorage.getItem("cav-mode") as Mode | null;
+      if (!localStorage.getItem("cav-mode-v2")) {
+        localStorage.setItem("cav-mode-v2", "1");
+        if (!saved || saved === "default") return "auto";
+      }
+      return saved || "auto";
     } catch {
-      return "default";
+      return "auto";
     }
   });
   const [team, setTeam] = useState<boolean>(() => {

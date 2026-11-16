@@ -68,7 +68,7 @@ export function teamRules(appRoot = APP_ROOT): string {
   }
 }
 
-export type ChatMode = "default" | "acceptEdits" | "plan";
+export type ChatMode = "default" | "acceptEdits" | "plan" | "auto";
 
 interface PendingPermission {
   resolve: (r: PermissionResult) => void;
@@ -311,10 +311,20 @@ export function answerPermission(runId: string, id: string, allow: boolean, alwa
   emit(run, { kind: "permission-answer", id, allow });
   p.resolve(
     allow
-      ? { behavior: "allow", updatedInput: p.input, ...(always && p.suggestions ? { updatedPermissions: p.suggestions as any } : {}) }
+      ? { behavior: "allow", updatedInput: p.input, ...(always && p.suggestions ? { updatedPermissions: persist(p.suggestions) } : {}) }
       : { behavior: "deny", message: "L'utilisateur a refusé." },
   );
   return true;
+}
+
+/**
+ * « Toujours autoriser » : Claude Code propose souvent des règles valables pour
+ * la session seulement. Or chaque message de l'appli est une nouvelle requête :
+ * la règle serait oubliée aussitôt. On l'enregistre donc dans les réglages
+ * locaux du projet (.claude/settings.local.json), comme le fait le terminal.
+ */
+function persist(suggestions: unknown[]): any {
+  return suggestions.map((s: any) => (s && (s.destination === "session" || !s.destination) ? { ...s, destination: "localSettings" } : s));
 }
 
 export async function stopRun(runId: string): Promise<boolean> {
