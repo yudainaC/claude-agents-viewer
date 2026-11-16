@@ -46,6 +46,8 @@ interface Transcript {
   toolCalls: number;
   messages: number;
   spawns: Map<string, SpawnCall>;
+  /** Tokens consommés d'après les champs usage des réponses (dédoublonnés par message) */
+  tokens: number;
 }
 
 interface Meta {
@@ -91,7 +93,9 @@ export function parseTranscript(file: string, mtimeMs = 0): Transcript {
     toolCalls: 0,
     messages: 0,
     spawns: new Map(),
+    tokens: 0,
   };
+  const seenMsg = new Set<string>();
   let raw = "";
   try {
     raw = fs.readFileSync(file, "utf8");
@@ -119,6 +123,15 @@ export function parseTranscript(file: string, mtimeMs = 0): Transcript {
 
     if (d.type === "assistant") {
       if (msg.model && msg.model !== "<synthetic>") t.model = msg.model;
+      const u = msg.usage;
+      if (u && !(msg.id && seenMsg.has(msg.id))) {
+        if (msg.id) seenMsg.add(msg.id);
+        t.tokens +=
+          (u.input_tokens ?? 0) +
+          (u.output_tokens ?? 0) +
+          (u.cache_creation_input_tokens ?? 0) +
+          (u.cache_read_input_tokens ?? 0);
+      }
       if (Array.isArray(msg.content)) {
         for (const b of msg.content) {
           if (b?.type !== "tool_use") continue;
@@ -185,6 +198,7 @@ function baseNode(t: Transcript, id: string, depth: number): AgentNode {
     startedAt: t.firstTs,
     lastActivityAt: t.lastTs,
     durationMs: start && end ? end - start : undefined,
+    totalTokens: t.tokens || undefined,
     tools: t.tools,
     toolCalls: t.toolCalls,
     messages: t.messages,
@@ -255,7 +269,7 @@ export function buildSession(projectDir: string, sessionId: string): SessionDeta
     node.agentType = meta.agentType ?? call?.subagentType ?? "general-purpose";
     node.model = call?.resolvedModel ?? t.model ?? meta.model;
     node.prompt = call?.prompt;
-    node.totalTokens = call?.totalTokens;
+    node.totalTokens = call?.totalTokens ?? node.totalTokens;
     if (call?.durationMs) node.durationMs = call.durationMs;
     node.status = subStatus(meta, call, t, now);
 
@@ -294,6 +308,7 @@ export function buildSession(projectDir: string, sessionId: string): SessionDeta
     id: sessionId,
     project,
     projectDir: path.basename(projectDir),
+    cwd: main.cwd,
     title: main.title,
     startedAt: main.firstTs,
     lastActivityAt: latest(root),

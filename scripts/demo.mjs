@@ -28,11 +28,12 @@ const MAIN = path.join(DIR, `${SESSION}.jsonl`);
 const SUB = path.join(DIR, SESSION, "subagents");
 const TOOLS = ["Read", "Grep", "Glob", "Edit", "Bash", "Write", "WebSearch"];
 const TASKS = [
-  ["Explore", "Cartographier les dépendances"],
-  ["general-purpose", "Mettre à jour la documentation"],
-  ["Explore", "Chercher les usages de l'ancien token"],
-  ["code-reviewer", "Relire le diff OAuth"],
-  ["general-purpose", "Corriger les tests qui échouent"],
+  ["eclaireur", "Cartographier les dépendances", "claude-haiku-5-5"],
+  ["documentaliste", "Vérifier l'API OAuth du fournisseur", "claude-haiku-5-5"],
+  ["eclaireur", "Chercher les usages de l'ancien token", "claude-haiku-5-5"],
+  ["relecteur", "Relire le diff OAuth", "claude-sonnet-5-5"],
+  ["testeur", "Relancer les tests", "claude-haiku-5-5"],
+  ["developpeur", "Corriger les tests qui échouent", "claude-sonnet-5-5"],
 ];
 
 let n = 0;
@@ -47,9 +48,12 @@ const base = (agentId) => ({
   uuid: `live-${++n}`,
 });
 
+const models = { main: "claude-opus-5-5" };
 function toolCall(file, agentId, name = pick(TOOLS), input = {}) {
   const id = `toolu_live_${++n}`;
-  append(file, { ...base(agentId), type: "assistant", message: { role: "assistant", model: "claude-sonnet-5-5", content: [{ type: "tool_use", id, name, input }] } });
+  const model = models[agentId ?? "main"] ?? "claude-sonnet-5-5";
+  const usage = { input_tokens: 30, output_tokens: 80 + Math.floor(Math.random() * 400), cache_read_input_tokens: 2000 + Math.floor(Math.random() * 8000) };
+  append(file, { ...base(agentId), type: "assistant", message: { id: `msg_live_${n}`, role: "assistant", model, content: [{ type: "tool_use", id, name, input }], usage } });
   return id;
 }
 function toolResult(file, agentId, id, extra = {}) {
@@ -63,8 +67,9 @@ const live = [];
 live.push({ id: "a04", file: path.join(SUB, "agent-a04.jsonl"), toolUseId: "toolu_D", parentFile: path.join(SUB, "agent-a03.jsonl"), parentId: "a03", left: Infinity, type: "general-purpose", description: "Écrire les tests unitaires" });
 
 function spawnAgent() {
-  const [type, description] = pick(TASKS);
+  const [type, description, model] = pick(TASKS);
   const id = `live${++n}`;
+  models[id] = model;
   const toolUseId = toolCall(MAIN, undefined, "Agent", { description, subagent_type: type, prompt: `Tâche : ${description}` });
   const file = path.join(SUB, `agent-${id}.jsonl`);
   append(file, { ...base(id), type: "user", message: { role: "user", content: `Tâche : ${description}` } });

@@ -10,7 +10,8 @@
     "build": "tsc -p . && vite build",
     "start": "tsx server/index.ts --prod",
     "typecheck": "tsc -p .",
-    "test": "node scripts/make-fixtures.mjs && node --import tsx --test test/*.test.ts"
+    "test": "node scripts/make-fixtures.mjs && node --import tsx --test test/*.test.ts",
+    "install-team": "tsx scripts/install-team.ts"
   },
   "license": "MIT",
   "dependencies": {

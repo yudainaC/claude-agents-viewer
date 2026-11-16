@@ -6,9 +6,9 @@ import { buildSession, listSessions } from "../server/parser.ts";
 const CLAUDE_DIR = path.resolve("fixtures");
 const DIR = path.join(CLAUDE_DIR, "projects", "-home-demo-mon-app");
 
-test("liste les trois sessions de démo, la plus récente en premier", () => {
+test("liste les cinq sessions de démo, la plus récente en premier", () => {
   const list = listSessions(CLAUDE_DIR);
-  assert.equal(list.length, 3);
+  assert.equal(list.length, 5);
   assert.equal(list[0].id, "11111111-demo-4aaa-8000-000000000001");
 });
 

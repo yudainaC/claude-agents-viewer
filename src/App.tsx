@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { TeamView } from "./Team.tsx";
 import type { AgentNode, AgentStatus, SessionDetail, SessionSummary } from "../server/types.ts";
 
 // ------------------------------------------------------------ utilitaires
@@ -76,12 +77,15 @@ export function App() {
   const [onlyWithAgents, setOnlyWithAgents] = useState(false);
   const [info, setInfo] = useState<{ claudeDir: string; exists: boolean } | null>(null);
   const [, setNow] = useState(0);
+  const [view, setView] = useState<"sessions" | "team">(() => (location.hash === "#equipe" ? "team" : "sessions"));
+  const [version, setVersion] = useState(0);
 
   const refresh = useCallback(async () => {
     const list = await getJSON<SessionSummary[]>("/api/sessions").catch(() => []);
     setSessions(list);
     setSelected((cur) => cur ?? list[0]?.id ?? null);
     setNow(Date.now());
+    setVersion((v) => v + 1);
   }, []);
 
   useEffect(() => {
@@ -124,6 +128,27 @@ export function App() {
           </div>
         </header>
 
+        <nav className="tabs">
+          <button
+            className={view === "sessions" ? "on" : ""}
+            onClick={() => {
+              setView("sessions");
+              history.replaceState(null, "", "#");
+            }}
+          >
+            Sessions
+          </button>
+          <button
+            className={view === "team" ? "on" : ""}
+            onClick={() => {
+              setView("team");
+              history.replaceState(null, "", "#equipe");
+            }}
+          >
+            Équipe
+          </button>
+        </nav>
+
         <div className="global">
           <span className={`dot ${totals.running ? "running" : ""}`} />
           {totals.running
@@ -147,6 +172,7 @@ export function App() {
                 onClick={() => {
                   setSelected(s.id);
                   setAgentId("main");
+                  setView("sessions");
                 }}
               >
                 <div className="session-top">
@@ -181,7 +207,9 @@ export function App() {
       </aside>
 
       <main className="main">
-        {detail && agent ? (
+        {view === "team" ? (
+          <TeamView version={version} />
+        ) : detail && agent ? (
           <>
             <header className="head">
               <div>

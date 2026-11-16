@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildSession, findSessionDir, listSessions, projectsRoot } from "./parser.ts";
+import { installTeam, teamReport } from "./team.ts";
 
 const CLAUDE_DIR = path.resolve(process.env.CLAUDE_DIR ?? path.join(os.homedir(), ".claude"));
 const PORT = Number(process.env.PORT ?? 4317);
@@ -17,6 +18,19 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 function json(res: http.ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
   res.end(JSON.stringify(body));
+}
+
+async function readBody(req: http.IncomingMessage): Promise<any> {
+  let data = "";
+  for await (const chunk of req) {
+    data += chunk;
+    if (data.length > 10_000) break;
+  }
+  try {
+    return JSON.parse(data || "{}");
+  } catch {
+    return {};
+  }
 }
 
 /** Empreinte des fichiers de transcripts : change dès qu'un agent écrit. */
@@ -49,6 +63,12 @@ function signature(): string {
   } catch {
     /* dossier absent */
   }
+  try {
+    const agents = path.join(CLAUDE_DIR, "agents");
+    for (const f of fs.readdirSync(agents)) sig += `agents/${f}:${fs.statSync(path.join(agents, f)).mtimeMs};`;
+  } catch {
+    /* pas d'agents perso */
+  }
   return sig;
 }
 
@@ -78,6 +98,19 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     const dir = findSessionDir(CLAUDE_DIR, m[1]);
     const s = dir && buildSession(dir, m[1]);
     return s ? json(res, 200, s) : json(res, 404, { error: "session introuvable" });
+  }
+  if (url.pathname === "/api/team" && req.method === "GET") {
+    return json(res, 200, teamReport(ROOT, CLAUDE_DIR));
+  }
+  if (url.pathname === "/api/team/install" && req.method === "POST") {
+    // Écrit dans ~/.claude/agents : on refuse tout appel venu d'une autre page web.
+    const origin = req.headers.origin;
+    const host = req.headers.host;
+    if ((origin && origin !== `http://${host}`) || !String(req.headers["content-type"]).startsWith("application/json")) {
+      return json(res, 403, { error: "requête refusée" });
+    }
+    const body = await readBody(req);
+    return json(res, 200, installTeam(ROOT, CLAUDE_DIR, !!body.overwrite));
   }
   if (url.pathname === "/api/events") {
     res.writeHead(200, {

@@ -26,7 +26,13 @@ function transcript({ session, agentId, cwd, prompt, steps, startAgo, model = "c
       type: "assistant",
       uuid: uid(),
       timestamp: ts(t),
-      message: { role: "assistant", model, content: [{ type: "tool_use", id, name: s.tool, input: s.input ?? {} }] },
+      message: {
+        id: `msg_${uid()}`,
+        role: "assistant",
+        model,
+        content: [{ type: "tool_use", id, name: s.tool, input: s.input ?? {} }],
+        usage: { input_tokens: 40, output_tokens: 120 + (n % 7) * 30, cache_read_input_tokens: 3000 + (n % 5) * 900, cache_creation_input_tokens: 200 },
+      },
     });
     if (s.pending) continue;
     t -= 1;
@@ -125,6 +131,40 @@ session({
   startAgo: 3600 * 5,
   mainSteps: [{ tool: "Bash" }, { tool: "Bash" }],
   agents: [],
+});
+
+// --- Session 4 : l'agent principal lit tout lui-même (déclenche un conseil)
+session({
+  id: "44444444-demo-4ddd-8000-000000000004",
+  cwd: "/home/demo/api",
+  prompt: "Explique-moi comment marche la facturation",
+  startAgo: 3600 * 26,
+  mainSteps: Array.from({ length: 32 }, (_, i) => ({ tool: ["Read", "Grep", "Read", "Glob"][i % 4], dt: 3 })),
+  agents: [],
+});
+
+// --- Session 5 : des Explore sur Opus (déclenche un conseil) et l'équipe en action
+session({
+  id: "55555555-demo-4eee-8000-000000000005",
+  cwd: "/home/demo/api",
+  prompt: "Ajoute la pagination sur /factures",
+  startAgo: 3600 * 8,
+  mainSteps: [
+    spawn("toolu_G", "Trouver les contrôleurs", "Explore", { result: { agentId: "c01" } }),
+    spawn("toolu_H", "Trouver les modèles", "Explore", { result: { agentId: "c02" } }),
+    spawn("toolu_I", "Trouver les tests existants", "Explore", { result: { agentId: "c03" } }),
+    spawn("toolu_J", "Plan de la pagination", "architecte", { result: { agentId: "c04" } }),
+    spawn("toolu_K", "Implémenter la pagination", "developpeur", { result: { agentId: "c05" } }),
+    spawn("toolu_L", "Lancer les tests", "testeur", { result: { agentId: "c06" } }),
+  ],
+  agents: [
+    { id: "c01", toolUseId: "toolu_G", type: "Explore", description: "Trouver les contrôleurs", startAgo: 3600 * 8 - 5, finished: true, model: "claude-opus-5-5", prompt: "…", steps: [{ tool: "Grep" }, { tool: "Read" }] },
+    { id: "c02", toolUseId: "toolu_H", type: "Explore", description: "Trouver les modèles", startAgo: 3600 * 8 - 6, finished: true, model: "claude-opus-5-5", prompt: "…", steps: [{ tool: "Glob" }, { tool: "Read" }] },
+    { id: "c03", toolUseId: "toolu_I", type: "Explore", description: "Trouver les tests existants", startAgo: 3600 * 8 - 7, finished: true, model: "claude-opus-5-5", prompt: "…", steps: [{ tool: "Glob" }] },
+    { id: "c04", toolUseId: "toolu_J", type: "architecte", description: "Plan de la pagination", startAgo: 3600 * 8 - 40, finished: true, model: "claude-opus-5-5", prompt: "…", steps: [{ tool: "Read" }, { tool: "Read" }] },
+    { id: "c05", toolUseId: "toolu_K", type: "developpeur", description: "Implémenter la pagination", startAgo: 3600 * 8 - 90, finished: true, model: "claude-sonnet-5-5", prompt: "…", steps: [{ tool: "Edit" }, { tool: "Edit" }, { tool: "Bash" }] },
+    { id: "c06", toolUseId: "toolu_L", type: "testeur", description: "Lancer les tests", startAgo: 3600 * 8 - 200, finished: true, model: "claude-haiku-5-5", prompt: "…", steps: [{ tool: "Bash" }] },
+  ],
 });
 
 console.log("Fixtures écrites dans ./fixtures");
