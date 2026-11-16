@@ -92,6 +92,10 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.roundRect(x, y, w, h, r);
 }
 
+/** Plafond de pixels du canvas (≈ 1600×1000) et cadence de l'animation. */
+const MAX_PIXELS = 1_600_000;
+const FRAME_MS = 1000 / 30;
+
 export function World({
   actors,
   height,
@@ -114,7 +118,16 @@ export function World({
 
   useEffect(() => {
     const cv = canvas.current!;
-    const ctx = cv.getContext("2d")!;
+    const main = cv.getContext("2d")!;
+    // `ctx` pointe sur le canvas visible, ou sur un calque en cache pendant qu'on le prépare
+    let ctx = main;
+    // calques mis en cache : le décor fixe et la vignette ne sont redessinés que
+    // si la taille change ou si la lumière (jour/nuit) a vraiment bougé
+    const bg = document.createElement("canvas");
+    const vig = document.createElement("canvas");
+    let bgKey = "";
+    let vigKey = "";
+    let transform: [number, number, number, number, number, number] = [1, 0, 0, 1, 0, 0];
     const sprites = new Map<string, Sprite>();
     const particles: Particle[] = [];
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -129,15 +142,40 @@ export function World({
 
     const resize = () => {
       const r = cv.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
+      // résolution plafonnée : au-delà, l'œil ne voit pas la différence mais le
+      // processeur si (WebKitGTK, utilisé par Tauri sous Linux, dessine souvent sans GPU)
+      let dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      const area = Math.max(1, r.width * r.height);
+      if (area * dpr * dpr > MAX_PIXELS) dpr = Math.sqrt(MAX_PIXELS / area);
       cv.width = Math.round(r.width * dpr);
       cv.height = Math.round(r.height * dpr);
+      bg.width = vig.width = cv.width;
+      bg.height = vig.height = cv.height;
+      bgKey = vigKey = "";
       // on remplit la largeur, et on cadre sur le sol si la hauteur manque
       scale = Math.max(r.width / W, r.height / H);
       // en petit format on zoome sur le sol (lits et bureaux), centré sur la pièce
       offX = compact ? r.width / 2 - 448 * scale : (r.width - W * scale) / 2;
       offY = Math.min(0, r.height - H * scale);
-      ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * offX, dpr * offY);
+      transform = [dpr * scale, 0, 0, dpr * scale, dpr * offX, dpr * offY];
+      main.setTransform(...transform);
+    };
+
+    /** Dessine `paint` dans un calque hors écran (même repère que le canvas visible). */
+    const renderLayer = (layer: HTMLCanvasElement, paint: () => void) => {
+      const lc = layer.getContext("2d")!;
+      lc.setTransform(1, 0, 0, 1, 0, 0);
+      lc.clearRect(0, 0, layer.width, layer.height);
+      lc.setTransform(...transform);
+      ctx = lc;
+      paint();
+      ctx = main;
+    };
+    const blit = (layer: HTMLCanvasElement) => {
+      main.save();
+      main.setTransform(1, 0, 0, 1, 0, 0);
+      main.drawImage(layer, 0, 0);
+      main.restore();
     };
     const ro = new ResizeObserver(resize);
     ro.observe(cv);
@@ -207,7 +245,8 @@ export function World({
     };
 
     // --------------------------------------------------- décor
-    const drawRoom = () => {
+    // décor fixe (mis en cache)
+    const drawRoomStatic = () => {
       const wall = mix("#2a2430", "#f1e4cf", day);
       const wall2 = mix("#221d27", "#e6d5bb", day);
       const g = ctx.createLinearGradient(0, 0, 0, FLOOR);
@@ -250,6 +289,67 @@ export function World({
       ctx.stroke();
       ctx.setLineDash([]);
 
+      // rayon de lumière (jour) ou de lune (nuit)
+      const wx = 300;
+      const wy = 46;
+      const ww = 200;
+      const wh = 150;
+      const beam = ctx.createLinearGradient(wx, wy + wh, wx + 60, H);
+      beam.addColorStop(0, day > 0.5 ? `rgba(255,236,190,${0.18 * day})` : `rgba(170,190,255,${0.08 * (1 - day)})`);
+      beam.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = beam;
+      ctx.beginPath();
+      ctx.moveTo(wx + 10, wy + wh);
+      ctx.lineTo(wx + ww - 10, wy + wh);
+      ctx.lineTo(wx + ww + 90, H);
+      ctx.lineTo(wx + 40, H);
+      ctx.fill();
+
+      // porte
+      ctx.fillStyle = mix("#3d2f28", "#9c6d45", day);
+      roundRect(ctx, DOOR_X - 38, 186, 76, FLOOR - 186, 6);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,.2)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(DOOR_X - 28, 200, 56, 50);
+      ctx.strokeRect(DOOR_X - 28, 262, 56, 52);
+      ctx.fillStyle = "#e7c36a";
+      ctx.beginPath();
+      ctx.arc(DOOR_X + 26, 262, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      // panneau
+      ctx.fillStyle = mix("#e9dcc6", "#fffaf1", day);
+      roundRect(ctx, DOOR_X - 24, 160, 48, 16, 4);
+      ctx.fill();
+      ctx.fillStyle = "#7a5a3c";
+      ctx.font = "700 9px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("STUDIO", DOOR_X, 171);
+
+      // étagère et plantes
+      ctx.fillStyle = mix("#5b4636", "#a87b52", day);
+      ctx.fillRect(560, 120, 180, 7);
+      const books = ["#d9604f", "#5b84d6", "#d9a93a", "#4caf7a", "#9b6fd3", "#3fb6c6"];
+      books.forEach((c, i) => {
+        ctx.fillStyle = c;
+        ctx.globalAlpha = 0.55 + day * 0.45;
+        ctx.fillRect(572 + i * 13, 90 + (i % 2) * 6, 10, 30 - (i % 2) * 6);
+      });
+      ctx.globalAlpha = 1;
+      // horloge
+      const cx = 640;
+      const cy = 205;
+      ctx.fillStyle = mix("#e9dcc6", "#fffaf1", day);
+      ctx.beginPath();
+      ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = mix("#5b4636", "#a87b52", day);
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    };
+
+    // décor animé : ciel, plantes, aiguilles
+    const drawRoomLive = () => {
       // fenêtre et ciel
       const wx = 300;
       const wy = 46;
@@ -324,63 +424,12 @@ export function World({
       ctx.fillStyle = mix("#5b4636", "#a87b52", day);
       ctx.fillRect(wx - 12, wy + wh + 2, ww + 24, 8);
 
-      // rayon de lumière (jour) ou de lune (nuit)
-      const beam = ctx.createLinearGradient(wx, wy + wh, wx + 60, H);
-      beam.addColorStop(0, day > 0.5 ? `rgba(255,236,190,${0.18 * day})` : `rgba(170,190,255,${0.08 * (1 - day)})`);
-      beam.addColorStop(1, "rgba(255,255,255,0)");
-      ctx.fillStyle = beam;
-      ctx.beginPath();
-      ctx.moveTo(wx + 10, wy + wh);
-      ctx.lineTo(wx + ww - 10, wy + wh);
-      ctx.lineTo(wx + ww + 90, H);
-      ctx.lineTo(wx + 40, H);
-      ctx.fill();
-
-      // porte
-      ctx.fillStyle = mix("#3d2f28", "#9c6d45", day);
-      roundRect(ctx, DOOR_X - 38, 186, 76, FLOOR - 186, 6);
-      ctx.fill();
-      ctx.strokeStyle = "rgba(0,0,0,.2)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(DOOR_X - 28, 200, 56, 50);
-      ctx.strokeRect(DOOR_X - 28, 262, 56, 52);
-      ctx.fillStyle = "#e7c36a";
-      ctx.beginPath();
-      ctx.arc(DOOR_X + 26, 262, 3.5, 0, Math.PI * 2);
-      ctx.fill();
-      // panneau
-      ctx.fillStyle = mix("#e9dcc6", "#fffaf1", day);
-      roundRect(ctx, DOOR_X - 24, 160, 48, 16, 4);
-      ctx.fill();
-      ctx.fillStyle = "#7a5a3c";
-      ctx.font = "700 9px system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("STUDIO", DOOR_X, 171);
-
-      // étagère et plantes
-      ctx.fillStyle = mix("#5b4636", "#a87b52", day);
-      ctx.fillRect(560, 120, 180, 7);
-      const books = ["#d9604f", "#5b84d6", "#d9a93a", "#4caf7a", "#9b6fd3", "#3fb6c6"];
-      books.forEach((c, i) => {
-        ctx.fillStyle = c;
-        ctx.globalAlpha = 0.55 + day * 0.45;
-        ctx.fillRect(572 + i * 13, 90 + (i % 2) * 6, 10, 30 - (i % 2) * 6);
-      });
-      ctx.globalAlpha = 1;
       plant(700, 120, 0.8);
       plant(760, FLOOR + 10, 1.25);
       plant(140, FLOOR + 6, 1);
 
-      // horloge
       const cx = 640;
       const cy = 205;
-      ctx.fillStyle = mix("#e9dcc6", "#fffaf1", day);
-      ctx.beginPath();
-      ctx.arc(cx, cy, 20, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = mix("#5b4636", "#a87b52", day);
-      ctx.lineWidth = 3;
-      ctx.stroke();
       const now = new Date();
       const hand = (ang: number, len: number, w: number) => {
         ctx.lineWidth = w;
@@ -755,7 +804,13 @@ export function World({
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, cv.width, cv.height);
       ctx.restore();
-      drawRoom();
+      const dayKey = `${cv.width}x${cv.height}:${Math.round(day * 40)}`;
+      if (dayKey !== bgKey) {
+        renderLayer(bg, drawRoomStatic);
+        bgKey = dayKey;
+      }
+      blit(bg);
+      drawRoomLive();
 
       // profondeur : meubles et personnages triés par y
       const byBed = new Map<number, Sprite>();
@@ -820,15 +875,35 @@ export function World({
       for (const s of sprites.values()) drawLabels(s);
 
       // vignette douce
-      const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.85);
-      vg.addColorStop(0, "rgba(0,0,0,0)");
-      vg.addColorStop(1, `rgba(0,0,0,${0.35 - day * 0.2})`);
-      ctx.fillStyle = vg;
-      ctx.fillRect(0, 0, W, H);
-
-      raf = requestAnimationFrame(frame);
+      if (dayKey !== vigKey) {
+        renderLayer(vig, () => {
+          const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.85);
+          vg.addColorStop(0, "rgba(0,0,0,0)");
+          vg.addColorStop(1, `rgba(0,0,0,${0.35 - day * 0.2})`);
+          ctx.fillStyle = vg;
+          ctx.fillRect(0, 0, W, H);
+        });
+        vigKey = dayKey;
+      }
+      blit(vig);
     };
-    raf = requestAnimationFrame(frame);
+
+    // boucle à ~30 images/s, en pause quand le studio n'est pas visible
+    let visible = true;
+    let lastDraw = 0;
+    const loop = (now: number) => {
+      raf = requestAnimationFrame(loop);
+      if (!visible || document.hidden) {
+        last = now;
+        return;
+      }
+      if (now - lastDraw < FRAME_MS - 2) return;
+      lastDraw = now;
+      frame(now);
+    };
+    raf = requestAnimationFrame(loop);
+    const io = new IntersectionObserver(([e]) => (visible = e.isIntersecting));
+    io.observe(cv);
 
     // survol et clic
     const toLogical = (e: MouseEvent) => {
@@ -870,6 +945,7 @@ export function World({
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      io.disconnect();
       cv.removeEventListener("mousemove", onMove);
       cv.removeEventListener("mouseleave", onLeave);
       cv.removeEventListener("click", onClick);
