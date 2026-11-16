@@ -12,6 +12,8 @@ Une interface graphique locale pour **travailler avec Claude Code sans terminal*
 - **Conversations** : retrouve et reprends tes conversations passées, y compris celles commencées dans le terminal.
 - **Agents en direct** : à droite, Claude et ses sous-agents, avec ce que chacun est en train de faire.
 - **Le studio animé** : les agents sont de petits personnages qui vivent dans une pièce. Ils dorment dans le coin repos (avec des « Zzz »), marchent jusqu'à un bureau quand on leur confie une tâche, tapent sur leur clavier pendant que du code s'envole de l'écran, et les sous-agents entrent et sortent par la porte. La pièce passe de la nuit au jour dès que quelqu'un travaille. Il est visible en grand dans l'onglet Bureau, en petit à côté de la discussion, et sur l'écran d'accueil.
+- **Utilisation** : en bas à gauche, ta consommation de l'abonnement Claude (session de 5 h, semaine, Opus) et l'heure de remise à zéro, comme `/usage` dans Claude Code.
+- **Modèle** : sous la zone de message, choisis le modèle de l'agent principal (Opus, Sonnet, Haiku…). Les sous-agents de l'équipe gardent chacun le leur.
 - **Équipe** : six sous-agents prêts à l'emploi pour dépenser moins (voir plus bas).
 
 Tout reste sur ta machine : le serveur n'écoute que sur `127.0.0.1` et refuse les requêtes venues d'autres sites.

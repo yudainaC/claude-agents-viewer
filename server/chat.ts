@@ -16,6 +16,7 @@ import type { AgentDefinition as SdkAgentDefinition } from "@anthropic-ai/claude
 import { fileURLToPath } from "node:url";
 import { parseAgentFile, teamDir } from "./team.ts";
 import type { ChatEvent, ConversationInfo } from "./types.ts";
+import { noteRateLimit } from "./usage.ts";
 
 const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -195,6 +196,9 @@ function translate(run: Run, m: SDKMessage) {
       }
       return;
     }
+    case "rate_limit_event":
+      noteRateLimit(m.rate_limit_info);
+      return;
     case "result":
       emit(run, {
         kind: "result",

@@ -1,3 +1,4 @@
+import { useUsage } from "./Usage.tsx";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatEvent } from "../server/types.ts";
 import { Markdown } from "./markdown.tsx";
@@ -85,6 +86,13 @@ const TOOL_ICON: Record<string, string> = {
   TodoWrite: "✅",
 };
 
+const FALLBACK_MODELS = [
+  { value: "", label: "Par défaut" },
+  { value: "opus", label: "Opus" },
+  { value: "sonnet", label: "Sonnet" },
+  { value: "haiku", label: "Haiku" },
+];
+
 export function Chat({
   cwd,
   projectName,
@@ -114,6 +122,14 @@ export function Chat({
       return true;
     }
   });
+  const [model, setModel] = useState<string>(() => {
+    try {
+      return localStorage.getItem("cav-model") ?? "";
+    } catch {
+      return "";
+    }
+  });
+  const usage = useUsage();
   const [runId, setRunId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,6 +152,13 @@ export function Chat({
       /* ignore */
     }
   }, [team]);
+  useEffect(() => {
+    try {
+      localStorage.setItem("cav-model", model);
+    } catch {
+      /* ignore */
+    }
+  }, [model]);
 
   const attach = useCallback(
     (id: string, replace: boolean) => {
@@ -224,7 +247,7 @@ export function Chat({
       const r = await fetch("/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ cwd, prompt, sessionId: currentSession.current, mode, team }),
+        body: JSON.stringify({ cwd, prompt, sessionId: currentSession.current, mode, team, model: model || undefined }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "Erreur");
@@ -320,6 +343,21 @@ export function Chat({
                 {m.label}
               </option>
             ))}
+          </select>
+          <select
+            className="model-select"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            disabled={!!runId}
+            aria-label="Modèle de l'agent principal"
+            title="Modèle de l'agent principal (Claude). Les sous-agents de l'équipe gardent chacun le leur."
+          >
+            {(usage?.models.length ? usage.models : FALLBACK_MODELS).map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+            {model && !(usage?.models.length ? usage.models : FALLBACK_MODELS).some((m) => m.value === model) && <option value={model}>{model}</option>}
           </select>
           <label
             className={`team-toggle ${team ? "on" : ""}`}

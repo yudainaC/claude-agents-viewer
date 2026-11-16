@@ -28,9 +28,10 @@ function readTeam(appRoot: string, claudeDir: string) {
       try {
         const d = parseAgentFile(fs.readFileSync(path.join(dir, f), "utf8"));
         if (!d) continue;
-        const prev = out.get(d.name);
-        // la version installée (personnalisée) l'emporte, mais reste « équipe » si elle en vient
-        out.set(d.name, { model: d.model, color: d.color, role: firstSentence(d.description), team: prev?.team ?? i === 0 });
+        // l'équipe fournie par l'appli fait foi (c'est elle qu'utilise le mode équipe) ;
+        // une vieille copie dans ~/.claude/agents ne doit pas l'écraser
+        if (out.get(d.name)?.team) continue;
+        out.set(d.name, { model: d.model, color: d.color, role: firstSentence(d.description), team: i === 0 });
       } catch {
         /* ignore */
       }

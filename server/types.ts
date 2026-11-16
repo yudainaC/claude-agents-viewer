@@ -193,3 +193,30 @@ export type ChatEvent =
   | { kind: "result"; ok: boolean; costUsd?: number; durationMs?: number; message?: string }
   | { kind: "error"; message: string }
   | { kind: "end"; sessionId?: string };
+
+// ------------------------------------------------------------ utilisation de Claude
+
+export interface UsageWindow {
+  id: string;
+  label: string;
+  /** Pourcentage utilisé, 0 à 100. */
+  percent: number | null;
+  resetsAt: string | null;
+  blocked: boolean;
+}
+
+export interface ModelChoice {
+  /** Valeur à passer au SDK ("" = modèle par défaut). */
+  value: string;
+  label: string;
+  model?: string;
+}
+
+export interface ClaudeUsage {
+  plan: string | null;
+  limitsAvailable: boolean;
+  windows: UsageWindow[];
+  models: ModelChoice[];
+  updatedAt: string;
+  error?: string;
+}

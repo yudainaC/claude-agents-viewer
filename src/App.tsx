@@ -5,6 +5,7 @@ import { Chat } from "./Chat.tsx";
 import { FolderPicker } from "./FolderPicker.tsx";
 import { OfficeView, StudioHero } from "./Office.tsx";
 import { TeamView } from "./Team.tsx";
+import { UsageCard } from "./Usage.tsx";
 
 type View = "chat" | "office" | "team";
 
@@ -174,6 +175,8 @@ export function App() {
             </ul>
           </div>
         )}
+
+        <UsageCard running={running} />
       </aside>
 
       <main className="workspace">

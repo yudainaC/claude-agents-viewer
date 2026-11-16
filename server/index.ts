@@ -10,6 +10,7 @@ import { buildSession, findSessionDir, listSessions, projectsRoot } from "./pars
 import { installTeam, teamReport } from "./team.ts";
 import { officeReport } from "./office.ts";
 import { activeRuns, answerPermission, conversations, history, startRun, stopRun, streamRun } from "./chat.ts";
+import { claudeUsage } from "./usage.ts";
 import { addProject, listDir, listProjects, removeProject } from "./projects.ts";
 
 const CLAUDE_DIR = path.resolve(process.env.CLAUDE_DIR ?? path.join(os.homedir(), ".claude"));
@@ -134,7 +135,7 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     const b = await readBody(req);
     if (!b.prompt || !b.cwd) return json(res, 400, { error: "message ou dossier manquant" });
     try {
-      const run = startRun({ cwd: String(b.cwd), prompt: String(b.prompt), sessionId: b.sessionId || undefined, mode: ["default", "acceptEdits", "plan"].includes(b.mode) ? b.mode : "default", model: b.model, team: b.team !== false });
+      const run = startRun({ cwd: String(b.cwd), prompt: String(b.prompt), sessionId: b.sessionId || undefined, mode: ["default", "acceptEdits", "plan"].includes(b.mode) ? b.mode : "default", model: typeof b.model === "string" && /^[a-z0-9.\-\[\]]{1,60}$/i.test(b.model) ? b.model : undefined, team: b.team !== false });
       return json(res, 200, { runId: run.id });
     } catch (e: any) {
       return json(res, 400, { error: e.message });
@@ -172,6 +173,9 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
   if (url.pathname === "/api/team/install" && post) {
     const body = await readBody(req);
     return json(res, 200, installTeam(ROOT, CLAUDE_DIR, !!body.overwrite));
+  }
+  if (url.pathname === "/api/usage") {
+    return json(res, 200, await claudeUsage(url.searchParams.has("refresh")));
   }
   if (url.pathname === "/api/events") {
     res.writeHead(200, {
