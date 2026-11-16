@@ -1,0 +1,29 @@
+{
+  "name": "claude-agents-viewer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Interface graphique locale pour suivre les agents et sous-agents de Claude Code",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --ignore src server/index.ts",
+    "demo": "node scripts/demo.mjs",
+    "build": "tsc -p . && vite build",
+    "start": "tsx server/index.ts --prod",
+    "typecheck": "tsc -p .",
+    "test": "node scripts/make-fixtures.mjs && node --import tsx --test test/*.test.ts"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  }
+}
